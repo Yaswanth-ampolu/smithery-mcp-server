@@ -18,21 +18,35 @@ const PYTHON_PATH = process.env.PYTHON_PATH || "python3";
  */
 export async function runShellCommand(command: string): Promise<string> {
   console.log(`Running shell command: "${command}"`);
+  
   try {
     const { stdout, stderr } = await execAsync(command);
-    if (stderr) {
-      console.log(`Command stderr: ${stderr}`);
+    
+    // Return a combination of stdout and stderr
+    let output = stdout ? stdout.toString().trim() : "";
+    
+    if (stderr && stderr.toString().trim()) {
+      if (output) {
+        output += '\n\n--- STDERR ---\n' + stderr.toString().trim();
+      } else {
+        output = stderr.toString().trim();
+      }
     }
-    if (stdout) {
-      console.log(`Command stdout: ${stdout.substring(0, 100)}${stdout.length > 100 ? '...' : ''}`);
+    
+    // If there's no output at all, return a message
+    if (!output) {
+      return "Command executed successfully (no output)";
     }
-    return stdout || stderr;
+    
+    return output;
   } catch (error) {
-    console.error(`Error executing command "${command}":`, error);
     if (error instanceof Error) {
-      return `Error: ${error.message}`;
+      console.error(`Error running command: ${error.message}`);
+      // For exec errors, the stderr is often in error.stderr
+      const errOutput = (error as any).stderr || error.message;
+      return `Error: ${errOutput}`;
     }
-    return `Unknown error occurred: ${String(error)}`;
+    return `Error: ${String(error)}`;
   }
 }
 
@@ -43,13 +57,35 @@ export async function runPythonFile(filePath: string, args: string = ""): Promis
   try {
     // Use the Python path from environment variables
     const command = `${PYTHON_PATH} ${filePath} ${args}`;
+    console.log(`Running Python script: "${command}"`);
+    
     const { stdout, stderr } = await execAsync(command);
-    return stdout || stderr;
+    
+    // Return a combination of stdout and stderr
+    let output = stdout ? stdout.toString().trim() : "";
+    
+    if (stderr && stderr.toString().trim()) {
+      if (output) {
+        output += '\n\n--- STDERR ---\n' + stderr.toString().trim();
+      } else {
+        output = stderr.toString().trim();
+      }
+    }
+    
+    // If there's no output at all, return a message
+    if (!output) {
+      return "Python script executed successfully (no output)";
+    }
+    
+    return output;
   } catch (error) {
     if (error instanceof Error) {
-      return `Error executing Python file: ${error.message}`;
+      console.error(`Error running Python script: ${error.message}`);
+      // For exec errors, the stderr is often in error.stderr
+      const errOutput = (error as any).stderr || error.message;
+      return `Error: ${errOutput}`;
     }
-    return `Unknown error occurred`;
+    return `Error: ${String(error)}`;
   }
 }
 
