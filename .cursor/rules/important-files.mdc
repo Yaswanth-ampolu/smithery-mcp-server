@@ -1,0 +1,18 @@
+---
+globs: **/**
+alwaysApply: true
+---
+
+# Important Files
+
+These files should be included in every chat for context.
+
+- `package.json` - Project configuration and dependencies
+- `tsconfig.json` - TypeScript configuration
+- `src/main.ts` - Entry point for the MCP server
+- `src/system.ts` - System utility functions for interacting with the local machine
+- `public/index.html` - Web client interface for testing the MCP server
+- `.gitignore` - Files to ignore in Git
+- `.env` - Environment variables and configuration (not tracked in Git)
+
+**Note:** When new important files are added to the project, they should be added to this list. 

@@ -1,0 +1,25 @@
+{
+  "name": "mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server implementation",
+  "type": "module",
+  "main": "dist/main.js",
+  "bin": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.9.0",
+    "@types/express": "^5.0.1",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.8.0"
+  }
+}
