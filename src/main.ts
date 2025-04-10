@@ -2,7 +2,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
 import express from "express";
+import type { Request, Response } from "express";
+import cors from "cors";
 import dotenv from "dotenv";
+import http from "http";
 import {
   runShellCommand,
   runPythonFile,
@@ -25,7 +28,7 @@ const server = new McpServer({
   version: SERVER_VERSION,
 });
 
-// Add system tools
+// Register tools
 server.tool(
   "runShellCommand",
   "Run a terminal command in the system shell",
@@ -33,10 +36,19 @@ server.tool(
     command: z.string().describe("The shell command to execute"),
   },
   async ({ command }) => {
-    const output = await runShellCommand(command);
-    return {
-      content: [{ type: "text", text: output }],
-    };
+    console.log(`Executing shell command: ${command}`);
+    try {
+      const output = await runShellCommand(command);
+      console.log(`Command result: ${output.substring(0, 100)}${output.length > 100 ? '...' : ''}`);
+      return {
+        content: [{ type: "text", text: output }],
+      };
+    } catch (error) {
+      console.error(`Error executing command: ${error}`);
+      return {
+        content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
+      };
+    }
   }
 );
 
@@ -147,32 +159,82 @@ server.tool(
   }
 );
 
-// Set up Express server
+// Create Express app and HTTP server
 const app = express();
-let transport: SSEServerTransport | undefined = undefined;
+const httpServer = http.createServer(app);
 
-// Add middleware to parse JSON
+// Apply middleware
+app.use(cors());
 app.use(express.json());
 
-// SSE endpoint for connecting to the MCP server
-app.get("/sse", async (req, res) => {
-  transport = new SSEServerTransport("/messages", res);
-  await server.connect(transport);
+// Simple approach: global transport with ID
+let activeTransport: SSEServerTransport | null = null;
+let transportCreationTime = 0;
+
+// Set up SSE endpoint
+app.get('/sse', (req: Request, res: Response) => {
+  console.log('SSE connection request from', req.ip);
+  
+  // Create and store the transport
+  activeTransport = new SSEServerTransport('/messages', res);
+  transportCreationTime = Date.now();
+  
+  console.log('New SSE connection established at', new Date(transportCreationTime).toISOString());
+  
+  // Handle client disconnect
+  req.on('close', () => {
+    console.log('Client disconnected from SSE connection');
+    // Only clear if it's still our transport (based on time)
+    if (activeTransport && transportCreationTime) {
+      activeTransport = null;
+      transportCreationTime = 0;
+    }
+  });
+  
+  // Connect the transport to the server
+  server.connect(activeTransport).catch(err => {
+    console.error('Error connecting server to transport:', err);
+    activeTransport = null;
+    transportCreationTime = 0;
+  });
 });
 
-// Messages endpoint for sending messages to the MCP server
-app.post("/messages", async (req, res) => {
-  if (!transport) {
-    res.status(400).json({ error: "No transport" });
+// Set up message endpoint
+app.post('/messages', (req: Request, res: Response) => {
+  console.log('Received message at', new Date().toISOString(), ':', req.body);
+  
+  if (!activeTransport) {
+    console.log('No active SSE connection');
+    res.status(400).json({ 
+      error: 'No active SSE connection',
+      message: 'Please connect to /sse endpoint first'
+    });
     return;
   }
-  await transport.handlePostMessage(req, res);
+  
+  console.log('Handling message with transport created at', new Date(transportCreationTime).toISOString());
+  
+  // Using the active transport
+  activeTransport.handlePostMessage(req, res)
+    .then(() => {
+      console.log('Message handled successfully');
+    })
+    .catch((err: Error) => {
+      console.error('Error handling message:', err);
+      // Only set headers if they haven't been sent already
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          error: 'Internal server error',
+          message: err.message 
+        });
+      }
+    });
 });
 
-// Serve static files if needed
-app.use(express.static("public"));
+// Serve static files
+app.use(express.static('public'));
 
-// Start the server
-app.listen(PORT, "0.0.0.0", () => {
+// Start server
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`MCP Server listening on all interfaces at port ${PORT}`);
 }); 

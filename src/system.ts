@@ -17,14 +17,22 @@ const PYTHON_PATH = process.env.PYTHON_PATH || "python3";
  * Run a shell command and return its output
  */
 export async function runShellCommand(command: string): Promise<string> {
+  console.log(`Running shell command: "${command}"`);
   try {
     const { stdout, stderr } = await execAsync(command);
+    if (stderr) {
+      console.log(`Command stderr: ${stderr}`);
+    }
+    if (stdout) {
+      console.log(`Command stdout: ${stdout.substring(0, 100)}${stdout.length > 100 ? '...' : ''}`);
+    }
     return stdout || stderr;
   } catch (error) {
+    console.error(`Error executing command "${command}":`, error);
     if (error instanceof Error) {
       return `Error: ${error.message}`;
     }
-    return `Unknown error occurred`;
+    return `Unknown error occurred: ${String(error)}`;
   }
 }
 

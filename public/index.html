@@ -151,19 +151,31 @@
       
       eventSource.onopen = () => {
         document.getElementById('connection-status').textContent = 'Connected';
+        console.log('SSE connection established');
       };
       
-      eventSource.onerror = () => {
+      eventSource.onerror = (e) => {
+        console.error('SSE connection error:', e);
         document.getElementById('connection-status').textContent = 'Connection Error';
       };
       
+      // Handle incoming messages from server
       eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+        console.log('Received SSE message:', event.data);
         
-        // Check if this is a response to a previous message
-        if (data.id && resultCallbacks[data.id]) {
-          resultCallbacks[data.id](data);
-          delete resultCallbacks[data.id];
+        try {
+          const data = JSON.parse(event.data);
+          
+          // Check if this is a response to a previous message
+          if (data.id && resultCallbacks[data.id]) {
+            console.log('Found callback for message ID:', data.id);
+            resultCallbacks[data.id](data);
+            delete resultCallbacks[data.id];
+          } else {
+            console.log('No callback found for message ID:', data.id);
+          }
+        } catch (err) {
+          console.error('Error processing SSE message:', err, event.data);
         }
       };
     }
@@ -171,36 +183,68 @@
     // Send a message to the server
     async function sendMessage(type, content) {
       const id = `client-${messageId++}`;
+      console.log('Sending message:', id, type, content);
       
-      const response = await fetch('/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id,
-          type,
-          content,
-        }),
-      });
-      
-      return new Promise((resolve) => {
-        resultCallbacks[id] = resolve;
-      });
+      try {
+        const response = await fetch('/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id,
+            type,
+            content,
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response from server:', response.status, errorText);
+          throw new Error(`Server returned ${response.status}: ${errorText}`);
+        }
+        
+        console.log('Message sent successfully, waiting for response');
+        
+        return new Promise((resolve, reject) => {
+          // Set timeout to avoid hanging forever
+          const timeoutId = setTimeout(() => {
+            delete resultCallbacks[id];
+            reject(new Error('Response timeout after 10 seconds'));
+          }, 10000);
+          
+          resultCallbacks[id] = (result) => {
+            clearTimeout(timeoutId);
+            resolve(result);
+          };
+        });
+      } catch (error) {
+        console.error('Error sending message:', error);
+        throw error;
+      }
     }
     
     // Invoke a tool
     async function invokeTool(toolName, parameters) {
-      const result = await sendMessage('invoke_tool', {
-        name: toolName,
-        parameters,
-      });
-      
-      if (result && result.content && result.content.length > 0) {
-        return result.content[0].text;
+      try {
+        console.log(`Invoking tool: ${toolName}`, parameters);
+        
+        const result = await sendMessage('invoke_tool', {
+          name: toolName,
+          parameters,
+        });
+        
+        console.log('Tool result:', result);
+        
+        if (result && result.content && result.content.length > 0) {
+          return result.content[0].text;
+        }
+        
+        return 'No result';
+      } catch (error) {
+        console.error(`Error invoking tool ${toolName}:`, error);
+        return `Error: ${error.message}`;
       }
-      
-      return 'No result';
     }
     
     // Initialize event listeners

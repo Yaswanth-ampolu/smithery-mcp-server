@@ -51,11 +51,14 @@ On the client machine where Claude Desktop is installed:
 {
   "mcpServers": {
     "yaswanth-tools": {
-      "url": "http://172.16.16.54:8080/sse"
+      "url": "http://172.16.16.54:8080/sse",
+      "command": "yaswanth-tools"
     }
   }
 }
 ```
+
+IMPORTANT: Make sure the file is named exactly `config.json` (not `claude_desktop_config.json` or any other name).
 
 4. Save the file and restart Claude Desktop.
 
