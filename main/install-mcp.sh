@@ -449,6 +449,22 @@ install_mcp() {
     exit 1
   fi
   
+  # Verify the downloaded file is not empty and is a valid tar.gz
+  if [ ! -s /tmp/mcp-terminal.tar.gz ]; then
+    echo -e "${RED}Downloaded file is empty! Release may not exist.${NC}"
+    echo "URL: $DOWNLOAD_URL"
+    echo "Please verify the GitHub release exists and contains the file."
+    exit 1
+  fi
+  
+  # Check if this is a valid tar.gz file
+  if ! file /tmp/mcp-terminal.tar.gz | grep -q "gzip compressed data"; then
+    echo -e "${RED}Invalid tar.gz file downloaded!${NC}"
+    echo "URL: $DOWNLOAD_URL"
+    echo "Content downloaded is not a valid gzip file. Verify your GitHub release."
+    exit 1
+  fi
+  
   echo -e "${YELLOW}Extracting files...${NC}"
   if ! tar xzf /tmp/mcp-terminal.tar.gz -C "$INSTALL_DIR"; then
     echo -e "${RED}Extraction failed!${NC}"
