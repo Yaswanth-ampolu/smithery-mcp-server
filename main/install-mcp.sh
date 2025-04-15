@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 # Default settings
 INSTALL_DIR="$HOME/mcp-terminal"
 BIN_DIR="$HOME/bin"
-VERSION="v1.0.0"  # Change this when releasing new versions
+VERSION="v1.0.0"
 REPO_NAME="smithery-mcp"
 GITHUB_USER="Yaswanth-ampolu"
 DOWNLOAD_URL="https://github.com/$GITHUB_USER/$REPO_NAME/releases/download/$VERSION/mcp-terminal.tar.gz"
@@ -94,92 +94,9 @@ setup_path() {
   fi
 }
 
-# Function to install the MCP Terminal Server
-install_mcp() {
-  echo -e "${YELLOW}=== MCP Terminal Server Installation ===${NC}"
-  echo "This script will install the MCP Terminal Server locally without root access"
-  
-  # Create directories
-  mkdir -p "$INSTALL_DIR" || { echo -e "${RED}Failed to create installation directory!${NC}"; exit 1; }
-  mkdir -p "$BIN_DIR" || { echo -e "${RED}Failed to create bin directory!${NC}"; exit 1; }
-  
-  # Download and extract
-  echo -e "${YELLOW}Downloading MCP Terminal Server...${NC}"
-  if ! curl -L "$DOWNLOAD_URL" -o /tmp/mcp-terminal.tar.gz; then
-    echo -e "${RED}Download failed! Please check your internet connection and try again.${NC}"
-    echo "URL: $DOWNLOAD_URL"
-    exit 1
-  fi
-  
-  echo -e "${YELLOW}Extracting files...${NC}"
-  if ! tar xzf /tmp/mcp-terminal.tar.gz -C "$INSTALL_DIR"; then
-    echo -e "${RED}Extraction failed!${NC}"
-    rm -f /tmp/mcp-terminal.tar.gz
-    exit 1
-  fi
-  
-  # Clean up
-  rm -f /tmp/mcp-terminal.tar.gz
-  
-  # Create the mcp-terminal command script
-  echo -e "${YELLOW}Creating mcp-terminal command...${NC}"
-  cat > "$BIN_DIR/mcp-terminal" << 'EOF'
-#!/bin/bash
-
-# Colors for output
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-INSTALL_DIR="$HOME/mcp-terminal"
-PID_FILE="$INSTALL_DIR/mcp.pid"
-LOG_FILE="$INSTALL_DIR/mcp.log"
-PORT=8080  # Default port, can be changed with --port option
-
-# Parse command line options
-while [[ "$#" -gt 0 ]]; do
-  case $1 in
-    --port)
-      PORT="$2"
-      shift 2
-      ;;
-    *)
-      # Save the first non-option argument as the command
-      if [ -z "$COMMAND" ]; then
-        COMMAND="$1"
-        shift
-      else
-        echo "Unknown parameter: $1"
-        exit 1
-      fi
-      ;;
-  esac
-done
-
-start_server() {
-  if [ -f "$PID_FILE" ] && ps -p $(cat "$PID_FILE" 2>/dev/null) > /dev/null 2>&1; then
-    echo -e "${YELLOW}MCP Terminal Server is already running! (PID: $(cat "$PID_FILE"))${NC}"
-    return 1
-  fi
-  
-  echo -e "${GREEN}Starting MCP Terminal Server on port $PORT...${NC}"
-  cd "$INSTALL_DIR" || { echo -e "${RED}Failed to change to installation directory!${NC}"; exit 1; }
-  
-  # Check if dist/main.js exists
-  if [ ! -f "dist/main.js" ]; then
-    echo -e "${RED}Error: dist/main.js not found in installation directory!${NC}"
-    echo "The installation may be corrupted. Try reinstalling the MCP Terminal Server."
-    exit 1
-  fi
-  
-  # Create public directory and index.html if they don't exist
-  if [ ! -d "public" ]; then
-    mkdir -p public
-  fi
-
-  if [ ! -f "public/index.html" ]; then
-    cat > "public/index.html" << 'HTMLEOF'
+# Create HTML file for the web interface
+create_html_file() {
+  cat > "$1" << 'HTMLEOF'
 <!DOCTYPE html>
 <html>
 <head>
@@ -301,6 +218,67 @@ start_server() {
 </body>
 </html>
 HTMLEOF
+}
+
+# Create the control script for MCP Terminal
+create_control_script() {
+  cat > "$1" << 'SCRIPTEOF'
+#!/bin/bash
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+INSTALL_DIR="$HOME/mcp-terminal"
+PID_FILE="$INSTALL_DIR/mcp.pid"
+LOG_FILE="$INSTALL_DIR/mcp.log"
+PORT=8080  # Default port, can be changed with --port option
+
+# Parse command line options
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    --port)
+      PORT="$2"
+      shift 2
+      ;;
+    *)
+      # Save the first non-option argument as the command
+      if [ -z "$COMMAND" ]; then
+        COMMAND="$1"
+        shift
+      else
+        echo "Unknown parameter: $1"
+        exit 1
+      fi
+      ;;
+  esac
+done
+
+start_server() {
+  if [ -f "$PID_FILE" ] && ps -p $(cat "$PID_FILE" 2>/dev/null) > /dev/null 2>&1; then
+    echo -e "${YELLOW}MCP Terminal Server is already running! (PID: $(cat "$PID_FILE"))${NC}"
+    return 1
+  fi
+  
+  echo -e "${GREEN}Starting MCP Terminal Server on port $PORT...${NC}"
+  cd "$INSTALL_DIR" || { echo -e "${RED}Failed to change to installation directory!${NC}"; exit 1; }
+  
+  # Check if dist/main.js exists
+  if [ ! -f "dist/main.js" ]; then
+    echo -e "${RED}Error: dist/main.js not found in installation directory!${NC}"
+    echo "The installation may be corrupted. Try reinstalling the MCP Terminal Server."
+    exit 1
+  fi
+  
+  # Create public directory and index.html if they don't exist
+  if [ ! -d "public" ]; then
+    mkdir -p public
+  fi
+
+  if [ ! -f "public/index.html" ]; then
+    create_html_file "public/index.html"
   fi
   
   # Start the server with the specified port
@@ -312,7 +290,7 @@ HTMLEOF
   if ps -p $(cat "$PID_FILE" 2>/dev/null) > /dev/null 2>&1; then
     echo -e "${GREEN}Server started with PID: $(cat "$PID_FILE")${NC}"
     echo "Log file: $LOG_FILE"
-    echo -e "You can access the server at: ${BLUE}http://localhost:$PORT${NC}"
+    echo -e "You can access the server at: ${GREEN}http://localhost:$PORT${NC}"
   else
     echo -e "${RED}Server failed to start. Check the log file for details:${NC}"
     echo "tail -n 20 $LOG_FILE"
@@ -371,7 +349,7 @@ status_server() {
       SERVER_PORT=$PORT
     fi
     
-    echo -e "Access URL: ${BLUE}http://localhost:$SERVER_PORT${NC}"
+    echo -e "Access URL: ${GREEN}http://localhost:$SERVER_PORT${NC}"
     
     # Show memory usage
     MEM_USAGE=$(ps -o rss= -p $(cat "$PID_FILE"))
@@ -448,40 +426,158 @@ case "$COMMAND" in
     exit 1
     ;;
 esac
-EOF
+SCRIPTEOF
 
-# Make it executable
-chmod +x "$BIN_DIR/mcp-terminal"
-if [ ! -x "$BIN_DIR/mcp-terminal" ]; then
-  echo -e "${RED}Failed to make mcp-terminal executable!${NC}"
-  exit 1
+  # Make the script executable
+  chmod +x "$1"
+}
+
+# Function to install the MCP Terminal Server
+install_mcp() {
+  echo -e "${YELLOW}=== MCP Terminal Server Installation ===${NC}"
+  echo "This script will install the MCP Terminal Server locally without root access"
+  
+  # Create directories
+  mkdir -p "$INSTALL_DIR" || { echo -e "${RED}Failed to create installation directory!${NC}"; exit 1; }
+  mkdir -p "$BIN_DIR" || { echo -e "${RED}Failed to create bin directory!${NC}"; exit 1; }
+  
+  # Download and extract
+  echo -e "${YELLOW}Downloading MCP Terminal Server...${NC}"
+  if ! curl -L "$DOWNLOAD_URL" -o /tmp/mcp-terminal.tar.gz; then
+    echo -e "${RED}Download failed! Please check your internet connection and try again.${NC}"
+    echo "URL: $DOWNLOAD_URL"
+    exit 1
+  fi
+  
+  echo -e "${YELLOW}Extracting files...${NC}"
+  if ! tar xzf /tmp/mcp-terminal.tar.gz -C "$INSTALL_DIR"; then
+    echo -e "${RED}Extraction failed!${NC}"
+    rm -f /tmp/mcp-terminal.tar.gz
+    exit 1
+  fi
+  
+  # Clean up
+  rm -f /tmp/mcp-terminal.tar.gz
+  
+  # Create the mcp-terminal command script
+  echo -e "${YELLOW}Creating mcp-terminal command...${NC}"
+  create_control_script "$BIN_DIR/mcp-terminal"
+  
+  # Make it executable
+  if [ ! -x "$BIN_DIR/mcp-terminal" ]; then
+    echo -e "${RED}Failed to make mcp-terminal executable!${NC}"
+    exit 1
+  fi
+
+  # Add executable permission for the install directory
+  chmod -R +x "$INSTALL_DIR"
+
+  # Setup PATH
+  setup_path
+
+  echo -e "${GREEN}MCP Terminal Server installed successfully!${NC}"
+  echo -e "${YELLOW}Usage:${NC}"
+  echo -e "  To start the server:    ${BLUE}mcp-terminal start${NC}"
+  echo -e "  To stop the server:     ${BLUE}mcp-terminal stop${NC}"
+  echo -e "  To check status:        ${BLUE}mcp-terminal status${NC}"
+  echo -e "  To restart server:      ${BLUE}mcp-terminal restart${NC}"
+  echo -e "  To uninstall:           ${BLUE}mcp-terminal uninstall${NC}"
+  echo -e "  To use a different port:${BLUE}mcp-terminal start --port 9000${NC}"
+  echo ""
+  echo -e "The server will be available at: ${BLUE}http://localhost:8080${NC}"
+  echo ""
+  echo -e "${YELLOW}Note:${NC} You may need to restart your terminal or run 'source ~/.bashrc'"
+  echo "to update your PATH before using the mcp-terminal command."
+
+  # Add ~/bin to the current PATH to allow immediate use
+  export PATH="$HOME/bin:$PATH"
+
+  # Ask if user wants to start the server now
+  read -p "Do you want to start the MCP Terminal Server now? [y/N]: " START_SERVER
+  if [[ $START_SERVER =~ ^[Yy]$ ]]; then
+    "$BIN_DIR/mcp-terminal" start
+  fi
+}
+
+# Function to uninstall the MCP Terminal Server
+uninstall_mcp() {
+  echo -e "${YELLOW}Uninstalling MCP Terminal Server...${NC}"
+  
+  # Stop the server if it's running
+  if [ -f "$INSTALL_DIR/mcp.pid" ]; then
+    if [ -x "$BIN_DIR/mcp-terminal" ]; then
+      "$BIN_DIR/mcp-terminal" stop
+    else
+      PID=$(cat "$INSTALL_DIR/mcp.pid" 2>/dev/null)
+      if [ ! -z "$PID" ] && ps -p $PID > /dev/null 2>&1; then
+        kill $PID
+        sleep 1
+        if ps -p $PID > /dev/null 2>&1; then
+          kill -9 $PID
+        fi
+      fi
+      rm -f "$INSTALL_DIR/mcp.pid"
+    fi
+  fi
+  
+  # Remove the command script
+  if [ -f "$BIN_DIR/mcp-terminal" ]; then
+    rm -f "$BIN_DIR/mcp-terminal"
+    echo "Removed command script"
+  fi
+  
+  # Remove the installation directory
+  if [ -d "$INSTALL_DIR" ]; then
+    rm -rf "$INSTALL_DIR"
+    echo "Removed installation directory"
+  fi
+  
+  echo -e "${GREEN}MCP Terminal Server has been uninstalled!${NC}"
+  echo "Note: The PATH modification in your shell configuration remains."
+}
+
+# Process command line arguments
+ACTION="install"  # Default action
+PORT_OPTION=""
+
+# Parse command line options
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    --uninstall)
+      ACTION="uninstall"
+      shift
+      ;;
+    --port)
+      PORT=$2
+      PORT_OPTION="--port $PORT"
+      shift 2
+      ;;
+    --help)
+      echo "Usage: $0 [options]"
+      echo "Options:"
+      echo "  --uninstall    Uninstall MCP Terminal Server"
+      echo "  --port PORT    Specify which port to use (default: 8080)"
+      echo "  --help         Show this help message"
+      exit 0
+      ;;
+    *)
+      echo "Unknown parameter: $1"
+      echo "Use --help for usage information"
+      exit 1
+      ;;
+  esac
+done
+
+# Check for dependencies before installing
+if [ "$ACTION" = "install" ]; then
+  check_dependencies
 fi
 
-# Add executable permission for the install directory
-chmod -R +x "$INSTALL_DIR"
-
-# Setup PATH
-setup_path
-
-echo -e "${GREEN}MCP Terminal Server installed successfully!${NC}"
-echo -e "${YELLOW}Usage:${NC}"
-echo -e "  To start the server:    ${BLUE}mcp-terminal start${NC}"
-echo -e "  To stop the server:     ${BLUE}mcp-terminal stop${NC}"
-echo -e "  To check status:        ${BLUE}mcp-terminal status${NC}"
-echo -e "  To restart server:      ${BLUE}mcp-terminal restart${NC}"
-echo -e "  To uninstall:           ${BLUE}mcp-terminal uninstall${NC}"
-echo -e "  To use a different port:${BLUE}mcp-terminal start --port 9000${NC}"
-echo ""
-echo -e "The server will be available at: ${BLUE}http://localhost:8080${NC}"
-echo ""
-echo -e "${YELLOW}Note:${NC} You may need to restart your terminal or run 'source ~/.bashrc'"
-echo "to update your PATH before using the mcp-terminal command."
-
-# Add ~/bin to the current PATH to allow immediate use
-export PATH="$HOME/bin:$PATH"
-
-# Ask if user wants to start the server now
-read -p "Do you want to start the MCP Terminal Server now? [y/N]: " START_SERVER
-if [[ $START_SERVER =~ ^[Yy]$ ]]; then
-  "$BIN_DIR/mcp-terminal" start
+# Perform the selected action
+if [ "$ACTION" = "install" ]; then
+  install_mcp
+elif [ "$ACTION" = "uninstall" ]; then
+  uninstall_mcp
 fi
+
+exit 0
