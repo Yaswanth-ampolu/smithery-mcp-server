@@ -19,8 +19,8 @@ COPY . .
 # Build the TypeScript project
 RUN pnpm build
 
-# Expose the server port
+# Expose the server port (not needed for stdio)
 EXPOSE 8080
 
-# Command to run the server
-CMD ["node", "dist/main.js"] 
+# Command to run the server with stdio for Smithery
+CMD ["node", "dist/smithery-adapter.js"] 

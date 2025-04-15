@@ -8,7 +8,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "bash ./force-kill-port.sh 8080 && tsx watch src/main.ts",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "build:smithery": "tsc -p tsconfig.json",
+    "start:smithery": "node dist/smithery-adapter.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.9.0",
