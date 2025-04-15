@@ -5,6 +5,7 @@ import type { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
+import os from "os";
 import {
   runShellCommand,
   runPythonFile,
@@ -12,6 +13,7 @@ import {
   copyFile,
   createFile
 } from "./system.js";
+import { getDefaultWorkspace, ensureWorkspaceExists } from "./platform-paths.js";
 
 // Load environment variables
 dotenv.config();
@@ -21,6 +23,21 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8080;
 const HOST = process.env.MCP_SERVER_HOST || '0.0.0.0';
 const SERVER_NAME = process.env.SERVER_NAME || "MCP System Tools";
 const SERVER_VERSION = process.env.SERVER_VERSION || "1.0.0";
+
+// Determine and ensure workspace directory
+const DEFAULT_WORKSPACE = ensureWorkspaceExists(getDefaultWorkspace());
+
+// Log server info
+console.log(`
+=================================================
+  MCP Server ${SERVER_VERSION} - ${SERVER_NAME}
+=================================================
+OS: ${os.platform()} ${os.release()} (${os.arch()})
+Node: ${process.version}
+Workspace: ${DEFAULT_WORKSPACE}
+Binding to: ${HOST}:${PORT}
+=================================================
+`);
 
 // Create an MCP server
 const server = new McpServer({
@@ -384,9 +401,13 @@ app.post('/messages', async (req: Request, res: Response) => {
 // Server info endpoint
 app.get('/info', (req: Request, res: Response) => {
   res.status(200).json({
-    name: 'MCP Server',
+    name: SERVER_NAME,
     version: SERVER_VERSION,
-    activeSessions: sessions.size
+    activeSessions: sessions.size,
+    platform: os.platform(),
+    arch: os.arch(),
+    node: process.version,
+    workspace: DEFAULT_WORKSPACE
   });
 });
 

@@ -1,16 +1,19 @@
 {
-  "name": "mcp-server",
+  "name": "mcp-terminal-tools",
   "version": "1.0.0",
-  "description": "MCP server implementation",
+  "description": "Cross-platform MCP server for terminal access",
   "type": "module",
   "main": "dist/main.js",
-  "bin": "dist/main.js",
+  "bin": {
+    "mcp-terminal": "./bin/cli.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "bash ./force-kill-port.sh 8080 && tsx watch src/main.ts",
     "start": "node dist/main.js",
     "build:smithery": "tsc -p tsconfig.json",
-    "start:smithery": "node dist/smithery-adapter.js"
+    "start:smithery": "node dist/smithery-adapter.js",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.9.0",
@@ -25,5 +28,21 @@
     "@types/node": "^22.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "terminal",
+    "claude",
+    "tools",
+    "cli"
+  ],
+  "author": "Yaswanth Ampolu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yaswanth-ampolu/smithery-mcp-server.git"
   }
 }

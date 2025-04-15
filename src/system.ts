@@ -3,15 +3,20 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import dotenv from "dotenv";
+import { getDefaultWorkspace, ensureWorkspaceExists, resolveWorkspacePath } from "./platform-paths.js";
 
 // Load environment variables
 dotenv.config();
 
 const execAsync = promisify(exec);
 
-// Get default workspace from environment variable
-const DEFAULT_WORKSPACE = process.env.DEFAULT_WORKSPACE || process.cwd();
-const PYTHON_PATH = process.env.PYTHON_PATH || "python3";
+// Get default workspace from environment variable or determine dynamically
+const DEFAULT_WORKSPACE = ensureWorkspaceExists(getDefaultWorkspace());
+const PYTHON_PATH = process.env.PYTHON_PATH || 
+                    (process.platform === 'win32' ? 'python' : 'python3');
+
+console.log(`Using workspace directory: ${DEFAULT_WORKSPACE}`);
+console.log(`Using Python path: ${PYTHON_PATH}`);
 
 /**
  * Run a shell command and return its output
@@ -20,7 +25,8 @@ export async function runShellCommand(command: string): Promise<string> {
   console.log(`Running shell command: "${command}"`);
   
   try {
-    const { stdout, stderr } = await execAsync(command);
+    // Use cross-platform cwd for command execution
+    const { stdout, stderr } = await execAsync(command, { cwd: DEFAULT_WORKSPACE });
     
     // Return a combination of stdout and stderr
     let output = stdout ? stdout.toString().trim() : "";
@@ -55,11 +61,14 @@ export async function runShellCommand(command: string): Promise<string> {
  */
 export async function runPythonFile(filePath: string, args: string = ""): Promise<string> {
   try {
-    // Use the Python path from environment variables
-    const command = `${PYTHON_PATH} ${filePath} ${args}`;
+    // Resolve the file path relative to workspace
+    const resolvedPath = resolveWorkspacePath(filePath, DEFAULT_WORKSPACE);
+    
+    // Use the Python path from environment variables or platform-specific default
+    const command = `${PYTHON_PATH} ${resolvedPath} ${args}`;
     console.log(`Running Python script: "${command}"`);
     
-    const { stdout, stderr } = await execAsync(command);
+    const { stdout, stderr } = await execAsync(command, { cwd: DEFAULT_WORKSPACE });
     
     // Return a combination of stdout and stderr
     let output = stdout ? stdout.toString().trim() : "";
@@ -99,12 +108,11 @@ export async function readDirectory(dirPath: string): Promise<{
 }> {
   try {
     // If no path provided, use the default workspace
-    const resolvedPath = dirPath || DEFAULT_WORKSPACE;
-    const absolutePath = path.isAbsolute(resolvedPath) 
-      ? resolvedPath 
-      : path.join(DEFAULT_WORKSPACE, resolvedPath);
+    const resolvedPath = dirPath
+      ? resolveWorkspacePath(dirPath, DEFAULT_WORKSPACE)
+      : DEFAULT_WORKSPACE;
     
-    const entries = await fs.readdir(absolutePath, { withFileTypes: true });
+    const entries = await fs.readdir(resolvedPath, { withFileTypes: true });
     
     const files: string[] = [];
     const directories: string[] = [];
@@ -117,7 +125,7 @@ export async function readDirectory(dirPath: string): Promise<{
       }
     }
     
-    return { files, directories, path: absolutePath };
+    return { files, directories, path: resolvedPath };
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`Error reading directory: ${error.message}`);
@@ -131,14 +139,9 @@ export async function readDirectory(dirPath: string): Promise<{
  */
 export async function copyFile(sourcePath: string, destinationPath: string): Promise<void> {
   try {
-    // Resolve paths if they are relative
-    const resolvedSourcePath = path.isAbsolute(sourcePath) 
-      ? sourcePath 
-      : path.join(DEFAULT_WORKSPACE, sourcePath);
-    
-    const resolvedDestPath = path.isAbsolute(destinationPath) 
-      ? destinationPath 
-      : path.join(DEFAULT_WORKSPACE, destinationPath);
+    // Resolve paths relative to workspace
+    const resolvedSourcePath = resolveWorkspacePath(sourcePath, DEFAULT_WORKSPACE);
+    const resolvedDestPath = resolveWorkspacePath(destinationPath, DEFAULT_WORKSPACE);
     
     await fs.copyFile(resolvedSourcePath, resolvedDestPath);
   } catch (error) {
@@ -154,10 +157,8 @@ export async function copyFile(sourcePath: string, destinationPath: string): Pro
  */
 export async function createFile(filePath: string, content: string): Promise<void> {
   try {
-    // Resolve path if it's relative
-    const resolvedPath = path.isAbsolute(filePath) 
-      ? filePath 
-      : path.join(DEFAULT_WORKSPACE, filePath);
+    // Resolve path relative to workspace
+    const resolvedPath = resolveWorkspacePath(filePath, DEFAULT_WORKSPACE);
     
     // Ensure the directory exists
     const directory = path.dirname(resolvedPath);

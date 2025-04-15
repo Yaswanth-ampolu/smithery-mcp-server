@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import dotenv from "dotenv";
+import os from "os";
 import {
   runShellCommand,
   runPythonFile,
@@ -9,6 +10,7 @@ import {
   copyFile,
   createFile
 } from "./system.js";
+import { getDefaultWorkspace, ensureWorkspaceExists } from "./platform-paths.js";
 
 // Load environment variables
 dotenv.config();
@@ -16,6 +18,20 @@ dotenv.config();
 // Get server configuration from environment variables
 const SERVER_NAME = process.env.SERVER_NAME || "MCP System Tools";
 const SERVER_VERSION = process.env.SERVER_VERSION || "1.0.0";
+
+// Determine and ensure workspace directory
+const DEFAULT_WORKSPACE = ensureWorkspaceExists(getDefaultWorkspace());
+
+// Log server info for stdio adapter
+console.error(`
+=================================================
+  MCP Server ${SERVER_VERSION} - ${SERVER_NAME} (Stdio Adapter)
+=================================================
+OS: ${os.platform()} ${os.release()} (${os.arch()})
+Node: ${process.version}
+Workspace: ${DEFAULT_WORKSPACE}
+=================================================
+`);
 
 // Create an MCP server
 const server = new McpServer({
@@ -31,10 +47,10 @@ server.tool(
     command: z.string().describe("The shell command to execute"),
   },
   async ({ command }) => {
-    console.log(`Executing shell command: ${command}`);
+    console.error(`Executing shell command: ${command}`);
     try {
       const output = await runShellCommand(command);
-      console.log(`Command result: ${output.substring(0, 100)}${output.length > 100 ? '...' : ''}`);
+      console.error(`Command result: ${output.substring(0, 100)}${output.length > 100 ? '...' : ''}`);
       return {
         content: [{ type: "text", text: output || "Command executed successfully (no output)" }],
       };
