@@ -3,6 +3,16 @@
 const readline = require('readline');
 const http = require('http');
 const url = require('url');
+const dotenv = require('dotenv');
+
+// Load environment variables
+dotenv.config();
+
+// Get server URL from environment variables, command line argument, or default
+const HTTP_SERVER_URL = process.env.MCP_SERVER_URL || 
+                       process.argv[2] || 
+                       `http://${process.env.MCP_SERVER_HOST || 'localhost'}:${process.env.MCP_SERVER_PORT || 8080}`;
+const parsedUrl = url.parse(HTTP_SERVER_URL);
 
 // Setup readline interface for reading from stdin
 const rl = readline.createInterface({
@@ -11,16 +21,12 @@ const rl = readline.createInterface({
   terminal: false
 });
 
-// HTTP server URL to forward requests to
-const HTTP_SERVER_URL = 'http://172.16.16.54:8080';
-const parsedUrl = url.parse(HTTP_SERVER_URL);
-
 // Log to stderr, not stdout
 function log(message) {
   process.stderr.write(`[MCP Proxy] ${message}\n`);
 }
 
-log('Starting MCP proxy...');
+log(`Starting MCP proxy... (Server URL: ${HTTP_SERVER_URL})`);
 
 // Handle incoming JSON-RPC messages from stdin
 rl.on('line', (line) => {
@@ -136,4 +142,4 @@ process.on('SIGTERM', () => {
 });
 
 // Keep the process running
-log('Proxy initialized and waiting for messages...'); 
+log('Proxy initialized and waiting for messages...');

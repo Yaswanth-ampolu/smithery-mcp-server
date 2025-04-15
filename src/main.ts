@@ -18,6 +18,7 @@ dotenv.config();
 
 // Get server configuration from environment variables
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8080;
+const HOST = process.env.MCP_SERVER_HOST || '0.0.0.0';
 const SERVER_NAME = process.env.SERVER_NAME || "MCP System Tools";
 const SERVER_VERSION = process.env.SERVER_VERSION || "1.0.0";
 
@@ -427,8 +428,8 @@ function shutdown() {
 
 // Start server
 function startServer(port: number, maxRetries = 3, retryCount = 0) {
-  httpServer.listen(port, '0.0.0.0', () => {
-    console.log(`MCP Server listening on all interfaces at port ${port}`);
+  httpServer.listen(port, HOST, () => {
+    console.log(`MCP Server listening on ${HOST}:${port}`);
   }).on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
       console.warn(`Port ${port} is already in use.`);
@@ -450,4 +451,4 @@ function startServer(port: number, maxRetries = 3, retryCount = 0) {
 }
 
 // Initialize server
-startServer(PORT); 
+startServer(PORT);
