@@ -1,5 +1,5 @@
 {
-  "name": "mcp-terminal-tools",
+  "name": "smithery-mcp-server",
   "version": "1.0.0",
   "description": "Cross-platform MCP server for terminal access",
   "type": "module",

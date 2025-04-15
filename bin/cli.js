@@ -15,6 +15,15 @@ console.log(`Starting MCP Terminal Tools CLI`);
 console.log(`Process directory: ${process.cwd()}`);
 console.log(`Node version: ${process.version}`);
 
+// Check if the script file exists
+console.log(`CLI script path: ${__filename}`);
+try {
+  fs.accessSync(__filename, fs.constants.R_OK);
+  console.log(`CLI script exists and is readable`);
+} catch (err) {
+  console.error(`Error accessing CLI script: ${err.message}`);
+}
+
 // Get this script's directory
 let __dirname;
 try {
