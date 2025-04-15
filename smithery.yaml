@@ -1,0 +1,28 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      PORT:
+        type: number
+        description: "Port number for the MCP server (default: 8080)"
+        default: 8080
+      SERVER_NAME:
+        type: string
+        description: "Name of the MCP server (default: MCP System Tools)"
+        default: "MCP System Tools"
+      SERVER_VERSION:
+        type: string
+        description: "Version of the MCP server (default: 1.0.0)"
+        default: "1.0.0"
+  commandFunction: |
+    (config) => ({
+      command: 'node',
+      args: ['dist/main.js'],
+      env: {
+        PORT: config.PORT || 8080,
+        MCP_SERVER_HOST: '0.0.0.0',
+        SERVER_NAME: config.SERVER_NAME || 'MCP System Tools',
+        SERVER_VERSION: config.SERVER_VERSION || '1.0.0'
+      }
+    }) 
