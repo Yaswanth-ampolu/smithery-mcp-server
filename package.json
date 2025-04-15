@@ -13,6 +13,17 @@
   "bin": {
     "mcp-terminal": "./bin/cli.js"
   },
+  "files": [
+    "bin/",
+    "dist/",
+    "src/",
+    "public/",
+    "README.md",
+    ".env",
+    "tsconfig.json",
+    "smithery.yaml",
+    "pnpm-workspace.yaml"
+  ],
   "scripts": {
     "build": "npx tsc -p tsconfig.json",
     "dev": "bash ./force-kill-port.sh 8080 && npx tsx watch src/main.ts",
@@ -21,7 +32,7 @@
     "start:smithery": "node dist/smithery-adapter.js",
     "prepublishOnly": "npm run build",
     "postinstall": "node -e \"try { require('fs').accessSync('./src', require('fs').constants.R_OK); console.log('Source files detected, building...'); require('child_process').execSync('npx tsc -p tsconfig.json', {stdio: 'inherit'}); } catch(e) { console.log('No source files to build or already built.'); }\"",
-    "prepare": "node -e \"try { require('fs').chmodSync('./bin/cli.js', '0755'); console.log('Made CLI script executable'); } catch(e) { console.log('Could not make CLI script executable: ' + e.message); }\""
+    "prepare": "node -e \"try { const fs = require('fs'); fs.chmodSync('./bin/cli.js', '0755'); console.log('Made CLI script executable'); if (!fs.existsSync('./dist')) { console.log('Building project...'); require('child_process').execSync('npm run build', {stdio: 'inherit'}); } } catch(e) { console.error('Error in prepare script:', e.message); }\""
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.9.0",

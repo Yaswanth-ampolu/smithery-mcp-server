@@ -10,16 +10,23 @@ const path = require('path');
 const fs = require('fs');
 const url = require('url');
 
+// Log the current execution context
+console.log(`Starting MCP Terminal Tools CLI`);
+console.log(`Process directory: ${process.cwd()}`);
+console.log(`Node version: ${process.version}`);
+
 // Get this script's directory
 let __dirname;
 try {
   // ESM environment
   __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+  console.log(`Detected ESM environment, dirname: ${__dirname}`);
   // Continue with ESM imports
   runWithESM();
 } catch (error) {
   // CommonJS environment
   __dirname = __dirname || path.dirname(require.caller?.filename || __filename);
+  console.log(`Detected CommonJS environment, dirname: ${__dirname}`);
   // Continue with CommonJS
   runWithCommonJS();
 }
