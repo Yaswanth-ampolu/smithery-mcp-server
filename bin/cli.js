@@ -8,133 +8,103 @@
 // Using CommonJS require for better compatibility in global installs
 const path = require('path');
 const fs = require('fs');
-const url = require('url');
+const child_process = require('child_process');
 
 // Log the current execution context
 console.log(`Starting MCP Terminal Tools CLI`);
+console.log(`CLI file: ${__filename}`);
 console.log(`Process directory: ${process.cwd()}`);
 console.log(`Node version: ${process.version}`);
 
-// Check if the script file exists
-console.log(`CLI script path: ${__filename}`);
+// Get the directory where this script is located
+const scriptDir = path.dirname(__filename);
+console.log(`Script directory: ${scriptDir}`);
+
+// Get the package root directory
+const packageRoot = path.resolve(scriptDir, '..');
+console.log(`Package root: ${packageRoot}`);
+
+// List files in the package root to debug
 try {
-  fs.accessSync(__filename, fs.constants.R_OK);
-  console.log(`CLI script exists and is readable`);
-} catch (err) {
-  console.error(`Error accessing CLI script: ${err.message}`);
-}
-
-// Get this script's directory
-let __dirname;
-try {
-  // ESM environment
-  __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-  console.log(`Detected ESM environment, dirname: ${__dirname}`);
-  // Continue with ESM imports
-  runWithESM();
-} catch (error) {
-  // CommonJS environment
-  __dirname = __dirname || path.dirname(require.caller?.filename || __filename);
-  console.log(`Detected CommonJS environment, dirname: ${__dirname}`);
-  // Continue with CommonJS
-  runWithCommonJS();
-}
-
-async function runWithESM() {
-  const packageRoot = path.resolve(__dirname, '..');
-
-  // Possible entry points in priority order
-  const possibleEntryPoints = [
-    path.join(packageRoot, 'dist', 'main.js'),
-    path.join(packageRoot, 'dist', 'smithery-adapter.js')
-  ];
-
-  // Find the first entry point that exists
-  let entryPointToRun = null;
-  for (const entryPoint of possibleEntryPoints) {
-    if (fs.existsSync(entryPoint)) {
-      entryPointToRun = entryPoint;
-      break;
-    }
-  }
-
-  if (!entryPointToRun) {
-    console.error(`Error: Cannot find any main application file.`);
-    console.error(`Checked: ${possibleEntryPoints.join(', ')}`);
-    console.error('Did you build the project? Try running "npm run build" first.');
-    process.exit(1);
-  }
-
-  console.log(`Starting MCP server from: ${entryPointToRun}`);
-
-  // Execute the entry point
-  import(entryPointToRun).catch(err => {
-    console.error('Error starting the application:', err);
-    process.exit(1);
+  console.log(`Files in package root:`);
+  fs.readdirSync(packageRoot).forEach(file => {
+    console.log(`- ${file}`);
   });
+} catch (err) {
+  console.error(`Error reading package root: ${err.message}`);
 }
 
-function runWithCommonJS() {
-  const packageRoot = path.resolve(__dirname, '..');
+// Also list files in the bin directory
+try {
+  console.log(`Files in bin directory:`);
+  fs.readdirSync(scriptDir).forEach(file => {
+    console.log(`- ${file}`);
+  });
+} catch (err) {
+  console.error(`Error reading bin directory: ${err.message}`);
+}
 
-  // Possible entry points in priority order (using .cjs extension for CommonJS)
-  const possibleEntryPoints = [
-    path.join(packageRoot, 'dist', 'main.js'),
-    path.join(packageRoot, 'dist', 'smithery-adapter.js')
-  ];
+// Possible entry points in priority order
+const possibleEntryPoints = [
+  path.join(packageRoot, 'dist', 'main.js'),
+  path.join(packageRoot, 'dist', 'smithery-adapter.js')
+];
 
-  // Find the first entry point that exists
-  let entryPointToRun = null;
-  for (const entryPoint of possibleEntryPoints) {
-    if (fs.existsSync(entryPoint)) {
-      entryPointToRun = entryPoint;
-      break;
-    }
-  }
-
-  if (!entryPointToRun) {
-    console.error(`Error: Cannot find any main application file.`);
-    console.error(`Checked: ${possibleEntryPoints.join(', ')}`);
-    console.error('The package may not be built correctly.');
-    
-    // Attempt to build the package if src directory exists
-    if (fs.existsSync(path.join(packageRoot, 'src'))) {
-      console.log('Attempting to build the package...');
-      try {
-        require('child_process').execSync('npx tsc -p tsconfig.json', {
-          cwd: packageRoot,
-          stdio: 'inherit'
-        });
-        console.log('Build successful, retrying...');
-        
-        // Check again after building
-        for (const entryPoint of possibleEntryPoints) {
-          if (fs.existsSync(entryPoint)) {
-            entryPointToRun = entryPoint;
-            break;
-          }
-        }
-        
-        if (!entryPointToRun) {
-          console.error('Build completed but still cannot find entry point.');
-          process.exit(1);
-        }
-      } catch (error) {
-        console.error('Failed to build the package:', error);
-        process.exit(1);
-      }
-    } else {
+// Check if dist directory exists
+const distDir = path.join(packageRoot, 'dist');
+if (!fs.existsSync(distDir)) {
+  console.log(`Dist directory not found: ${distDir}`);
+  
+  // Check if src directory exists and attempt to build
+  const srcDir = path.join(packageRoot, 'src');
+  if (fs.existsSync(srcDir)) {
+    console.log(`Source directory found. Attempting to build...`);
+    try {
+      child_process.execSync('npx tsc -p tsconfig.json', {
+        cwd: packageRoot,
+        stdio: 'inherit'
+      });
+      console.log(`Build successful.`);
+    } catch (err) {
+      console.error(`Failed to build: ${err.message}`);
       process.exit(1);
     }
-  }
-
-  console.log(`Starting MCP server from: ${entryPointToRun}`);
-
-  // Execute the entry point
-  try {
-    require(entryPointToRun);
-  } catch (err) {
-    console.error('Error starting the application:', err);
+  } else {
+    console.error(`Neither dist nor src directories found. Cannot continue.`);
     process.exit(1);
   }
-} 
+}
+
+// Find the first entry point that exists
+let entryPointToRun = null;
+for (const entryPoint of possibleEntryPoints) {
+  console.log(`Checking for entry point: ${entryPoint}`);
+  if (fs.existsSync(entryPoint)) {
+    entryPointToRun = entryPoint;
+    console.log(`Found entry point: ${entryPoint}`);
+    break;
+  }
+}
+
+if (!entryPointToRun) {
+  console.error(`Error: Cannot find any main application file.`);
+  console.error(`Checked: ${possibleEntryPoints.join(', ')}`);
+  process.exit(1);
+}
+
+console.log(`Starting MCP server from: ${entryPointToRun}`);
+
+// Run the entry point as a child process (most reliable cross-platform approach)
+const child = child_process.spawn(process.execPath, [entryPointToRun], {
+  stdio: 'inherit',
+  detached: false
+});
+
+child.on('error', (err) => {
+  console.error(`Failed to start process: ${err.message}`);
+  process.exit(1);
+});
+
+child.on('exit', (code) => {
+  process.exit(code);
+}); 

@@ -9,17 +9,34 @@ import fs from 'fs';
 function getPackageRoot(): string {
   try {
     // When used as ES module
+    console.log('Trying to get package root in ESM mode');
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    return path.resolve(__dirname, '..');
+    const packageRoot = path.resolve(__dirname, '..');
+    console.log(`Package root resolved in ESM mode: ${packageRoot}`);
+    return packageRoot;
   } catch (error) {
     // Fallback for CommonJS environment
-    return path.resolve(process.cwd());
+    console.log('Falling back to CommonJS mode for package root');
+    
+    // Try to find package root from current file path
+    try {
+      // For CommonJS, __dirname and __filename are available
+      const packageRoot = path.resolve(path.dirname(module.filename), '..');
+      console.log(`Package root resolved in CommonJS mode: ${packageRoot}`);
+      return packageRoot;
+    } catch (innerError) {
+      // Last resort - use CWD
+      const cwd = process.cwd();
+      console.log(`Using current working directory as fallback: ${cwd}`);
+      return cwd;
+    }
   }
 }
 
 // Get the directory where the package is installed
 const PACKAGE_ROOT = getPackageRoot();
+console.log(`Using package root: ${PACKAGE_ROOT}`);
 
 /**
  * Determine the default workspace based on environment
