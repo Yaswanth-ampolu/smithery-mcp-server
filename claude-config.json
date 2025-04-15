@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "yaswanth-tools": {
+      "command": "node",
+      "args": ["/home/yaswanth/Desktop/mcp-server/mcp-proxy.js"],
+      "stdio": true
+    }
+  }
+} 

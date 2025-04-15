@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "system-tools": {
+      "url": "http://172.16.16.54:8080",
+      "env": {}
+    }
+  }
+} 
