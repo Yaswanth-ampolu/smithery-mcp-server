@@ -21,37 +21,37 @@ Before creating a release, ensure you have:
    npm run build
    ```
 
-3. **Create a temporary directory for packaging**
+3. **Create a build directory for packaging**
    ```bash
-   mkdir -p release-tmp/dist
+   mkdir -p build/dist
    ```
 
-4. **Copy necessary files to the temporary directory**
+4. **Copy necessary files to the build directory**
    ```bash
    # Copy compiled JavaScript
-   cp -r dist/* release-tmp/dist/
+   cp -r dist/* build/dist/
    
    # Copy package.json and other necessary files
-   cp package.json release-tmp/
+   cp package.json build/
    
    # Copy public folder (for web interface)
-   cp -r public release-tmp/
+   cp -r public build/
    
    # Copy any necessary static files
-   cp -r static release-tmp/ 2>/dev/null || true
+   cp -r static build/ 2>/dev/null || true
    
    # Add a README if desired
-   cp README.md release-tmp/ 2>/dev/null || true
+   cp README.md build/ 2>/dev/null || true
    ```
 
 5. **Create the tar.gz file**
    ```bash
-   cd release-tmp
+   cd build
    tar -czf ../mcp-terminal.tar.gz .
    cd ..
    ```
    
-   The important part is to create the archive from inside the release-tmp directory so that files are at the root of the archive.
+   The important part is to create the archive from inside the build directory so that files are at the root of the archive.
 
 6. **Verify the archive contents**
    ```bash
@@ -142,6 +142,6 @@ After a successful release:
 
 ```bash
 # Remove temporary files
-rm -rf release-tmp
+rm -rf build
 rm mcp-terminal.tar.gz
 ``` 
