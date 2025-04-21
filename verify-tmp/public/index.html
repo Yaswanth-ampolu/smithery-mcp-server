@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Server Client</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    .tool-card {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .tool-card h2 {
+      margin-top: 0;
+      color: #555;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .output {
+      background-color: #f8f8f8;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-top: 15px;
+      white-space: pre-wrap;
+      min-height: 20px;
+    }
+    .status {
+      color: #999;
+      font-style: italic;
+      margin-bottom: 20px;
+      padding: 10px;
+      border-radius: 4px;
+      background-color: #f8f8f8;
+      border-left: 4px solid #ccc;
+    }
+    .status.connected {
+      color: #4CAF50;
+      border-left-color: #4CAF50;
+      background-color: #f0fff0;
+    }
+    .status.connecting {
+      color: #ff9800;
+      border-left-color: #ff9800;
+      background-color: #fff9e6;
+    }
+    .status.error {
+      color: #f44336;
+      border-left-color: #f44336;
+      background-color: #ffebee;
+    }
+  </style>
+</head>
+<body>
+  <h1>MCP Server Client</h1>
+  
+  <div class="status" id="connection-status">Disconnected</div>
+  <button id="debug-button" style="margin-bottom: 20px;">Debug Connection</button>
+  
+  <div class="tool-card">
+    <h2>Run Shell Command</h2>
+    <div class="form-group">
+      <label for="command">Command:</label>
+      <input type="text" id="command" placeholder="ls -la">
+    </div>
+    <button id="run-command">Run Command</button>
+    <div class="output" id="command-output"></div>
+  </div>
+  
+  <div class="tool-card">
+    <h2>Run Python File</h2>
+    <div class="form-group">
+      <label for="python-file">File Path:</label>
+      <input type="text" id="python-file" placeholder="/path/to/script.py">
+    </div>
+    <div class="form-group">
+      <label for="python-args">Arguments (optional):</label>
+      <input type="text" id="python-args" placeholder="arg1 arg2">
+    </div>
+    <button id="run-python">Run Python</button>
+    <div class="output" id="python-output"></div>
+  </div>
+  
+  <div class="tool-card">
+    <h2>Read Directory</h2>
+    <div class="form-group">
+      <label for="dir-path">Directory Path:</label>
+      <input type="text" id="dir-path" placeholder="/path/to/directory">
+    </div>
+    <button id="read-dir">Read Directory</button>
+    <div class="output" id="dir-output"></div>
+  </div>
+  
+  <div class="tool-card">
+    <h2>Copy File</h2>
+    <div class="form-group">
+      <label for="source-path">Source Path:</label>
+      <input type="text" id="source-path" placeholder="/path/to/source">
+    </div>
+    <div class="form-group">
+      <label for="dest-path">Destination Path:</label>
+      <input type="text" id="dest-path" placeholder="/path/to/destination">
+    </div>
+    <button id="copy-file">Copy File</button>
+    <div class="output" id="copy-output"></div>
+  </div>
+  
+  <div class="tool-card">
+    <h2>Create File</h2>
+    <div class="form-group">
+      <label for="file-path">File Path:</label>
+      <input type="text" id="file-path" placeholder="/path/to/file.txt">
+    </div>
+    <div class="form-group">
+      <label for="file-content">Content:</label>
+      <textarea id="file-content" rows="4" placeholder="File content goes here"></textarea>
+    </div>
+    <button id="create-file">Create File</button>
+    <div class="output" id="create-output"></div>
+  </div>
+
+  <script>
+    let messageId = 0;
+    let eventSource;
+    let resultCallbacks = {};
+    let clientId = null;
+    
+    // Add a simple local cache to store responses for short periods
+    const responseCache = new Map();
+    const MAX_CACHE_AGE = 10000; // 10 seconds
+    
+    // Connect to the server using SSE
+    function connectSSE() {
+      const statusElement = document.getElementById('connection-status');
+      statusElement.textContent = 'Connecting...';
+      statusElement.className = 'status connecting';
+      
+      // Close existing connection if any
+      if (eventSource) {
+        eventSource.close();
+      }
+      
+      // Connect to the SSE endpoint
+      eventSource = new EventSource('/sse');
+      
+      eventSource.onopen = () => {
+        statusElement.className = 'status';
+        console.log('SSE connection established');
+      };
+      
+      eventSource.onerror = (e) => {
+        console.error('SSE connection error:', e);
+        statusElement.textContent = 'Connection Error';
+        statusElement.className = 'status error';
+      };
+      
+      // Handle incoming messages from server
+      eventSource.onmessage = (event) => {
+        console.log('Received SSE message:', event.data);
+        
+        try {
+          const data = JSON.parse(event.data);
+          
+          // Store the clientId if this is the initial connection message
+          if (data.type === 'connected' && data.clientId) {
+            clientId = data.clientId;
+            console.log('Client ID received:', clientId);
+            statusElement.textContent = `Connected (Session ID: ${clientId})`;
+            statusElement.className = 'status connected';
+          }
+          
+          // Check if this is a response to a previous message
+          if (data.id && resultCallbacks[data.id]) {
+            console.log('Found callback for message ID:', data.id);
+            resultCallbacks[data.id](data);
+            delete resultCallbacks[data.id];
+          } else {
+            console.log('No callback found for message ID:', data.id);
+          }
+        } catch (err) {
+          console.error('Error processing SSE message:', err, event.data);
+        }
+      };
+    }
+    
+    // Send a message to the server
+    async function sendMessage(type, content) {
+      const id = `client-${messageId++}`;
+      console.log('Sending message:', id, type, content);
+      
+      try {
+        const response = await fetch('/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id,
+            type,
+            content,
+            clientId
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Error response from server:', response.status, errorData);
+          
+          // Check if error is due to expired session
+          if (errorData.error === 'No active SSE connection') {
+            console.log('Session expired, reconnecting...');
+            connectSSE(); // Reconnect to get a new clientId
+            throw new Error(`${errorData.error}: ${errorData.message}`);
+          }
+          
+          throw new Error(`Server returned ${response.status}: ${JSON.stringify(errorData)}`);
+        }
+        
+        console.log('Message sent successfully, waiting for response');
+        
+        return new Promise((resolve, reject) => {
+          // Set timeout to avoid hanging forever
+          const timeoutId = setTimeout(() => {
+            delete resultCallbacks[id];
+            reject(new Error('Response timeout after 10 seconds'));
+          }, 10000);
+          
+          resultCallbacks[id] = (result) => {
+            clearTimeout(timeoutId);
+            resolve(result);
+          };
+        });
+      } catch (error) {
+        console.error('Error sending message:', error);
+        throw error;
+      }
+    }
+    
+    // Invoke a tool - final version with retry mechanism
+    async function invokeTool(toolName, parameters) {
+      try {
+        console.log(`Invoking tool: ${toolName}`, parameters);
+        
+        // Get the output element
+        const outputId = toolName === 'runShellCommand' ? 'command-output' :
+                         toolName === 'runPythonFile' ? 'python-output' :
+                         toolName === 'readDirectory' ? 'dir-output' :
+                         toolName === 'copyFile' ? 'copy-output' :
+                         toolName === 'createFile' ? 'create-output' : null;
+        
+        if (!outputId) {
+          throw new Error(`Unknown tool: ${toolName}`);
+        }
+        
+        const output = document.getElementById(outputId);
+        output.textContent = `Running ${toolName}...`;
+        
+        // Generate a unique ID for this request
+        const requestId = `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Function to process and extract result text from a response
+        const extractResultText = (responseData) => {
+          if (!responseData || !responseData.content) {
+            return 'No result';
+          }
+          
+          const content = responseData.content;
+          
+          if (content.content && Array.isArray(content.content) && content.content.length > 0) {
+            return content.content[0].text || 'No text in result';
+          } else if (Array.isArray(content) && content.length > 0) {
+            return content[0].text || 'No text in result';
+          } else if (typeof content === 'string') {
+            return content;
+          } else {
+            return JSON.stringify(content);
+          }
+        };
+        
+        // The actual tool invocation with retry
+        const attemptInvoke = async (retryCount = 0) => {
+          try {
+            // Make a direct API call with no timeouts or callbacks
+            const response = await fetch('/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+              },
+              body: JSON.stringify({
+                id: requestId,
+                type: 'invoke_tool',
+                content: {
+                  name: toolName,
+                  parameters,
+                },
+                clientId
+              }),
+              cache: 'no-store',
+              credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+              let errorMessage;
+              try {
+                const errorData = await response.json();
+                console.error('Error from server:', errorData);
+                
+                // Check if we need to reconnect
+                if (errorData.error === 'No active SSE connection') {
+                  console.log('Session expired, reconnecting...');
+                  connectSSE(); // Reconnect to get a new clientId
+                  
+                  if (retryCount < 1) {
+                    // Wait a moment for reconnection
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    return attemptInvoke(retryCount + 1);
+                  }
+                }
+                
+                errorMessage = errorData.message || JSON.stringify(errorData);
+              } catch (e) {
+                errorMessage = await response.text() || `HTTP error ${response.status}`;
+              }
+              
+              throw new Error(errorMessage);
+            }
+            
+            // Process the response
+            const responseData = await response.json();
+            console.log('Tool result:', responseData);
+            
+            // Store in cache for potential retrieval by result polling
+            responseCache.set(requestId, {
+              data: responseData,
+              timestamp: Date.now()
+            });
+            
+            // Return the extracted text
+            return extractResultText(responseData);
+          } catch (error) {
+            console.error(`Error in attemptInvoke (retry ${retryCount}):`, error);
+            if (retryCount < 2) {
+              console.log(`Retrying (${retryCount + 1}/2)...`);
+              await new Promise(resolve => setTimeout(resolve, 500));
+              return attemptInvoke(retryCount + 1);
+            }
+            throw error;
+          }
+        };
+        
+        // Attempt to invoke the tool with retries
+        return await attemptInvoke();
+      } catch (error) {
+        console.error(`Error invoking ${toolName}:`, error);
+        return `Error: ${error.message}`;
+      }
+    }
+    
+    // Clean up old cache entries periodically
+    setInterval(() => {
+      const now = Date.now();
+      for (const [key, value] of responseCache.entries()) {
+        if (now - value.timestamp > MAX_CACHE_AGE) {
+          responseCache.delete(key);
+        }
+      }
+    }, 30000);
+    
+    // Initialize event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      // Connect to SSE
+      connectSSE();
+      
+      // Debug button
+      document.getElementById('debug-button').addEventListener('click', async () => {
+        try {
+          // Get server info
+          const response = await fetch('/info');
+          if (!response.ok) {
+            throw new Error(`Server returned ${response.status}: ${await response.text()}`);
+          }
+          
+          const info = await response.json();
+          
+          // Display debug info
+          alert(`Server Info:
+Name: ${info.name}
+Version: ${info.version}
+Active Sessions: ${info.activeSessions}
+
+Client Info:
+Client ID: ${clientId || 'Not connected'}
+MessageID: ${messageId}
+Connection Status: ${document.getElementById('connection-status').textContent}`);
+        } catch (error) {
+          alert(`Error fetching server info: ${error.message}`);
+        }
+      });
+      
+      // Run Shell Command
+      document.getElementById('run-command').addEventListener('click', async () => {
+        const command = document.getElementById('command').value;
+        const output = document.getElementById('command-output');
+        
+        output.textContent = 'Running command...';
+        
+        try {
+          // Make a completely direct HTTP call without relying on SSE or callbacks
+          const response = await fetch('/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            },
+            body: JSON.stringify({
+              id: `direct-${Date.now()}`,
+              type: 'invoke_tool',
+              content: {
+                name: 'runShellCommand',
+                parameters: { command }
+              },
+              clientId
+            }),
+            cache: 'no-store'
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server error: ${errorText}`);
+          }
+          
+          // Parse the direct response
+          const responseData = await response.json();
+          console.log('Direct command response:', responseData);
+          
+          // Extract the result text
+          let resultText = 'No result';
+          
+          if (responseData && responseData.content) {
+            const content = responseData.content;
+            
+            if (content.content && Array.isArray(content.content) && content.content.length > 0) {
+              resultText = content.content[0].text || 'No text in result';
+            } else if (Array.isArray(content) && content.length > 0) {
+              resultText = content[0].text || 'No text in result';
+            } else if (typeof content === 'string') {
+              resultText = content;
+            } else {
+              resultText = JSON.stringify(content);
+            }
+          }
+          
+          output.textContent = resultText;
+        } catch (error) {
+          console.error('Command execution error:', error);
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+      
+      // Run Python File
+      document.getElementById('run-python').addEventListener('click', async () => {
+        const filePath = document.getElementById('python-file').value;
+        const args = document.getElementById('python-args').value;
+        const output = document.getElementById('python-output');
+        
+        output.textContent = 'Running Python file...';
+        
+        try {
+          // Make a completely direct HTTP call without relying on SSE or callbacks
+          const response = await fetch('/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            },
+            body: JSON.stringify({
+              id: `direct-${Date.now()}`,
+              type: 'invoke_tool',
+              content: {
+                name: 'runPythonFile',
+                parameters: { filePath, args }
+              },
+              clientId
+            }),
+            cache: 'no-store'
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server error: ${errorText}`);
+          }
+          
+          // Parse the direct response
+          const responseData = await response.json();
+          console.log('Direct Python response:', responseData);
+          
+          // Extract the result text
+          let resultText = 'No result';
+          
+          if (responseData && responseData.content) {
+            const content = responseData.content;
+            
+            if (content.content && Array.isArray(content.content) && content.content.length > 0) {
+              resultText = content.content[0].text || 'No text in result';
+            } else if (Array.isArray(content) && content.length > 0) {
+              resultText = content[0].text || 'No text in result';
+            } else if (typeof content === 'string') {
+              resultText = content;
+            } else {
+              resultText = JSON.stringify(content);
+            }
+          }
+          
+          output.textContent = resultText;
+        } catch (error) {
+          console.error('Python execution error:', error);
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+      
+      // Read Directory
+      document.getElementById('read-dir').addEventListener('click', async () => {
+        const dirPath = document.getElementById('dir-path').value;
+        const output = document.getElementById('dir-output');
+        
+        output.textContent = 'Reading directory...';
+        
+        try {
+          const result = await invokeTool('readDirectory', { dirPath });
+          
+          // Try to parse and format the JSON result
+          try {
+            const data = JSON.parse(result);
+            output.textContent = JSON.stringify(data, null, 2);
+          } catch {
+            output.textContent = result;
+          }
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+      
+      // Copy File
+      document.getElementById('copy-file').addEventListener('click', async () => {
+        const sourcePath = document.getElementById('source-path').value;
+        const destinationPath = document.getElementById('dest-path').value;
+        const output = document.getElementById('copy-output');
+        
+        output.textContent = 'Copying file...';
+        
+        try {
+          const result = await invokeTool('copyFile', { sourcePath, destinationPath });
+          output.textContent = result;
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+      
+      // Create File
+      document.getElementById('create-file').addEventListener('click', async () => {
+        const filePath = document.getElementById('file-path').value;
+        const content = document.getElementById('file-content').value;
+        const output = document.getElementById('create-output');
+        
+        output.textContent = 'Creating file...';
+        
+        try {
+          const result = await invokeTool('createFile', { filePath, content });
+          output.textContent = result;
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+    });
+    
+    // Poll the server for the latest command result
+    async function pollForResult(outputElement, attempts = 0) {
+      if (attempts > 5) {
+        // Give up after 5 attempts
+        if (outputElement.textContent === 'Waiting for results...') {
+          outputElement.textContent = 'No result received after multiple attempts. Please try again.';
+        }
+        return;
+      }
+      
+      try {
+        // Get the info endpoint to check for active sessions
+        const response = await fetch('/info');
+        const info = await response.json();
+        
+        if (info.activeSessions > 0) {
+          // Server still active, get the most recent message from cache
+          for (const [key, value] of responseCache.entries()) {
+            // Just pick the most recent one
+            outputElement.textContent = 'Result found! Displaying...';
+            const resultText = extractResultText(value.data);
+            outputElement.textContent = resultText || 'Command completed, but no output was returned';
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Error polling for result:', e);
+      }
+      
+      // Try again after a delay
+      setTimeout(() => pollForResult(outputElement, attempts + 1), 1000);
+    }
+    
+    // Helper function to extract result text (duplicate for global scope access)
+    function extractResultText(responseData) {
+      if (!responseData || !responseData.content) {
+        return 'No result';
+      }
+      
+      const content = responseData.content;
+      
+      if (content.content && Array.isArray(content.content) && content.content.length > 0) {
+        return content.content[0].text || 'No text in result';
+      } else if (Array.isArray(content) && content.length > 0) {
+        return content[0].text || 'No text in result';
+      } else if (typeof content === 'string') {
+        return content;
+      } else {
+        return JSON.stringify(content);
+      }
+    }
+  </script>
+</body>
+</html> 
