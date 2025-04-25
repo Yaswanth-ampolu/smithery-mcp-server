@@ -11,8 +11,19 @@ import {
   runPythonFile,
   readDirectory,
   copyFile,
-  createFile
+  createFile,
+  readFile,
+  editFile,
+  deleteFile,
+  moveFile,
+  createDirectory,
+  moveDirectory,
+  copyDirectory,
+  deleteDirectory,
+  getDirectoryTree,
+  combinationTask
 } from "./system.js";
+import type { DirectoryTreeNode, CombinationTask, CombinationTaskResult } from "./system.js";
 import { getDefaultWorkspace, ensureWorkspaceExists } from "./platform-paths.js";
 
 // Load environment variables
@@ -95,18 +106,18 @@ server.tool(
       const result = await readDirectory(dirPath || "");
       return {
         content: [
-          { 
-            type: "text", 
-            text: JSON.stringify(result, null, 2) 
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2)
           }
         ],
       };
     } catch (error) {
       return {
         content: [
-          { 
-            type: "text", 
-            text: error instanceof Error ? error.message : "Unknown error" 
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
           }
         ],
       };
@@ -126,18 +137,18 @@ server.tool(
       await copyFile(sourcePath, destinationPath);
       return {
         content: [
-          { 
-            type: "text", 
-            text: `Successfully copied file from ${sourcePath} to ${destinationPath}` 
+          {
+            type: "text",
+            text: `Successfully copied file from ${sourcePath} to ${destinationPath}`
           }
         ],
       };
     } catch (error) {
       return {
         content: [
-          { 
-            type: "text", 
-            text: error instanceof Error ? error.message : "Unknown error" 
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
           }
         ],
       };
@@ -157,18 +168,371 @@ server.tool(
       await createFile(filePath, content);
       return {
         content: [
-          { 
-            type: "text", 
-            text: `Successfully created file at ${filePath}` 
+          {
+            type: "text",
+            text: `Successfully created file at ${filePath}`
           }
         ],
       };
     } catch (error) {
       return {
         content: [
-          { 
-            type: "text", 
-            text: error instanceof Error ? error.message : "Unknown error" 
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "readFile",
+  "Read the content of a file",
+  {
+    filePath: z.string().describe("Path to the file to read"),
+    encoding: z.string().optional().describe("File encoding (default: utf8)"),
+    startLine: z.number().optional().describe("Start line (0-based, inclusive)"),
+    endLine: z.number().optional().describe("End line (0-based, inclusive)"),
+  },
+  async ({ filePath, encoding, startLine, endLine }) => {
+    try {
+      const content = await readFile(filePath, {
+        encoding: encoding as BufferEncoding,
+        startLine,
+        endLine
+      });
+
+      return {
+        content: [{ type: "text", text: content }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "editFile",
+  "Edit the content of an existing file",
+  {
+    filePath: z.string().describe("Path to the file to edit"),
+    operation: z.enum(['append', 'prepend', 'replace', 'insert']).describe("Edit operation to perform"),
+    content: z.string().describe("Content to add or replace with"),
+    lineNumber: z.number().optional().describe("Line number for insert operation (0-based)"),
+    startLine: z.number().optional().describe("Start line for replace operation (0-based, inclusive)"),
+    endLine: z.number().optional().describe("End line for replace operation (0-based, inclusive)"),
+    encoding: z.string().optional().describe("File encoding (default: utf8)"),
+  },
+  async ({ filePath, operation, content, lineNumber, startLine, endLine, encoding }) => {
+    try {
+      await editFile(filePath, {
+        operation,
+        content,
+        lineNumber,
+        startLine,
+        endLine,
+        encoding: encoding as BufferEncoding
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully edited file at ${filePath} using ${operation} operation`
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "deleteFile",
+  "Delete a file from the filesystem",
+  {
+    filePath: z.string().describe("Path to the file to delete"),
+  },
+  async ({ filePath }) => {
+    try {
+      await deleteFile(filePath);
+
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully deleted file at ${filePath}`
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "moveFile",
+  "Move a file from one location to another",
+  {
+    sourcePath: z.string().describe("Source file path"),
+    destinationPath: z.string().describe("Destination file path"),
+  },
+  async ({ sourcePath, destinationPath }) => {
+    try {
+      await moveFile(sourcePath, destinationPath);
+
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully moved file from ${sourcePath} to ${destinationPath}`
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "createDirectory",
+  "Create a new directory",
+  {
+    dirPath: z.string().describe("Path to the directory to create"),
+    recursive: z.boolean().optional().describe("Create parent directories if they don't exist (default: true)"),
+  },
+  async ({ dirPath, recursive = true }) => {
+    try {
+      await createDirectory(dirPath, recursive);
+
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully created directory at ${dirPath}`
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "moveDirectory",
+  "Move a directory from one location to another",
+  {
+    sourcePath: z.string().describe("Source directory path"),
+    destinationPath: z.string().describe("Destination path"),
+  },
+  async ({ sourcePath, destinationPath }) => {
+    try {
+      await moveDirectory(sourcePath, destinationPath);
+
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully moved directory from ${sourcePath} to ${destinationPath}`
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "copyDirectory",
+  "Copy a directory from one location to another",
+  {
+    sourcePath: z.string().describe("Source directory path"),
+    destinationPath: z.string().describe("Destination path"),
+    overwrite: z.boolean().optional().describe("Overwrite existing files (default: false)"),
+    errorOnExist: z.boolean().optional().describe("Throw error if destination exists (default: false)"),
+  },
+  async ({ sourcePath, destinationPath, overwrite = false, errorOnExist = false }) => {
+    try {
+      await copyDirectory(sourcePath, destinationPath, { overwrite, errorOnExist });
+
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully copied directory from ${sourcePath} to ${destinationPath}`
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "deleteDirectory",
+  "Delete a directory and its contents",
+  {
+    dirPath: z.string().describe("Path to the directory to delete"),
+    recursive: z.boolean().optional().describe("Delete all subdirectories and files (default: true)"),
+  },
+  async ({ dirPath, recursive = true }) => {
+    try {
+      await deleteDirectory(dirPath, recursive);
+
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully deleted directory at ${dirPath}`
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "getDirectoryTree",
+  "Get a hierarchical representation of a directory",
+  {
+    dirPath: z.string().describe("Path to the directory"),
+    maxDepth: z.number().optional().describe("Maximum depth to traverse (default: unlimited)"),
+    includeFiles: z.boolean().optional().describe("Include files in the tree (default: true)"),
+    includeDirs: z.boolean().optional().describe("Include directories in the tree (default: true)"),
+    includeSize: z.boolean().optional().describe("Include file sizes (default: false)"),
+    extensions: z.array(z.string()).optional().describe("Filter files by extensions (default: all files)"),
+    exclude: z.array(z.string()).optional().describe("Paths to exclude from the tree (default: none)"),
+  },
+  async ({ dirPath, maxDepth, includeFiles, includeDirs, includeSize, extensions, exclude }) => {
+    try {
+      const tree = await getDirectoryTree(dirPath, {
+        maxDepth,
+        includeFiles,
+        includeDirs,
+        includeSize,
+        extensions,
+        exclude
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(tree, null, 2)
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "combinationTask",
+  "Run a sequence of operations with a common working directory",
+  {
+    workingDir: z.string().describe("Working directory for all operations"),
+    tasks: z.array(
+      z.object({
+        type: z.string().describe("Type of task to perform"),
+        params: z.record(z.any()).describe("Parameters for the task")
+      })
+    ).describe("Array of tasks to perform"),
+    stopOnError: z.boolean().optional().describe("Stop execution if a task fails (default: true)")
+  },
+  async ({ workingDir, tasks, stopOnError }) => {
+    try {
+      const results = await combinationTask(workingDir, tasks, { stopOnError });
+
+      // Format results for display
+      const formattedResults = results.map(result => {
+        if (result.success) {
+          return {
+            taskType: result.taskType,
+            success: true,
+            result: typeof result.result === 'object'
+              ? JSON.stringify(result.result, null, 2)
+              : result.result
+          };
+        } else {
+          return {
+            taskType: result.taskType,
+            success: false,
+            error: result.error
+          };
+        }
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(formattedResults, null, 2)
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
           }
         ],
       };
@@ -197,7 +561,7 @@ const sessions = new Map<string, ClientSession>();
 app.get('/sse', (req: Request, res: Response) => {
   const clientId = Date.now().toString();
   console.log(`New SSE connection from ${req.ip}, ID: ${clientId}`);
-  
+
   // Set up SSE headers
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -205,23 +569,23 @@ app.get('/sse', (req: Request, res: Response) => {
     'Connection': 'keep-alive',
     'Access-Control-Allow-Origin': '*'
   });
-  
+
   // Initialize client session with response object and message queue
   sessions.set(clientId, {
     res,
     messageQueue: [],
     lastPing: Date.now()
   });
-  
+
   // Send initial message
   res.write(`data: ${JSON.stringify({ type: 'connected', clientId })}\n\n`);
-  
+
   // Handle client disconnect
   req.on('close', () => {
     console.log(`Client ${clientId} disconnected`);
     sessions.delete(clientId);
   });
-  
+
   // Keep connection alive with pings
   const pingInterval = setInterval(() => {
     if (sessions.has(clientId)) {
@@ -243,9 +607,9 @@ app.get('/sse', (req: Request, res: Response) => {
 // Message endpoint for invoking tools
 app.post('/messages', async (req: Request, res: Response) => {
   const { id, type, content, clientId } = req.body;
-  
+
   console.log(`Received message ${id} of type ${type} from client ${clientId || 'unknown'}`);
-  
+
   // If no client ID or no active session, return error
   if (!clientId) {
     res.status(400).json({
@@ -254,11 +618,11 @@ app.post('/messages', async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   if (!sessions.has(clientId)) {
     const activeClients = Array.from(sessions.keys());
     console.log(`No active session for client ${clientId}. Active clients: ${activeClients.join(', ')}`);
-    
+
     res.status(400).json({
       error: 'No active SSE connection',
       message: 'Your session may have expired. Please reconnect to /sse endpoint and use the new clientId',
@@ -266,18 +630,18 @@ app.post('/messages', async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const session = sessions.get(clientId)!;
-  
+
   try {
     // Handle tool invocation
     if (type === 'invoke_tool') {
       const { name, parameters } = content;
       console.log(`Invoking tool ${name} with parameters:`, parameters);
-      
+
       // Execute the tool
       let result;
-      
+
       try {
         // Call the appropriate function based on tool name
         switch (name) {
@@ -287,14 +651,14 @@ app.post('/messages', async (req: Request, res: Response) => {
               content: [{ type: "text", text: output || "Command executed successfully (no output)" }]
             };
             break;
-          
+
           case 'runPythonFile':
             const pythonOutput = await runPythonFile(parameters.filePath, parameters.args);
             result = {
               content: [{ type: "text", text: pythonOutput }]
             };
             break;
-          
+
           case 'readDirectory':
             try {
               const dirResult = await readDirectory(parameters.dirPath || "");
@@ -307,7 +671,7 @@ app.post('/messages', async (req: Request, res: Response) => {
               };
             }
             break;
-          
+
           case 'copyFile':
             try {
               await copyFile(parameters.sourcePath, parameters.destinationPath);
@@ -320,7 +684,7 @@ app.post('/messages', async (req: Request, res: Response) => {
               };
             }
             break;
-          
+
           case 'createFile':
             try {
               await createFile(parameters.filePath, parameters.content);
@@ -333,30 +697,266 @@ app.post('/messages', async (req: Request, res: Response) => {
               };
             }
             break;
-          
+
+          case 'readFile':
+            try {
+              const content = await readFile(parameters.filePath, {
+                encoding: parameters.encoding as BufferEncoding,
+                startLine: parameters.startLine,
+                endLine: parameters.endLine
+              });
+              result = {
+                content: [{ type: "text", text: content }]
+              };
+            } catch (error) {
+              result = {
+                content: [{ type: "text", text: error instanceof Error ? error.message : "Unknown error" }]
+              };
+            }
+            break;
+
+          case 'editFile':
+            try {
+              await editFile(parameters.filePath, {
+                operation: parameters.operation,
+                content: parameters.content,
+                lineNumber: parameters.lineNumber,
+                startLine: parameters.startLine,
+                endLine: parameters.endLine,
+                encoding: parameters.encoding as BufferEncoding
+              });
+              result = {
+                content: [{
+                  type: "text",
+                  text: `Successfully edited file at ${parameters.filePath} using ${parameters.operation} operation`
+                }]
+              };
+            } catch (error) {
+              result = {
+                content: [{
+                  type: "text",
+                  text: error instanceof Error ? error.message : "Unknown error"
+                }]
+              };
+            }
+            break;
+
+          case 'deleteFile':
+            try {
+              await deleteFile(parameters.filePath);
+              result = {
+                content: [{
+                  type: "text",
+                  text: `Successfully deleted file at ${parameters.filePath}`
+                }]
+              };
+            } catch (error) {
+              result = {
+                content: [{
+                  type: "text",
+                  text: error instanceof Error ? error.message : "Unknown error"
+                }]
+              };
+            }
+            break;
+
+          case 'moveFile':
+            try {
+              await moveFile(parameters.sourcePath, parameters.destinationPath);
+              result = {
+                content: [{
+                  type: "text",
+                  text: `Successfully moved file from ${parameters.sourcePath} to ${parameters.destinationPath}`
+                }]
+              };
+            } catch (error) {
+              result = {
+                content: [{
+                  type: "text",
+                  text: error instanceof Error ? error.message : "Unknown error"
+                }]
+              };
+            }
+            break;
+
+          case 'createDirectory':
+            try {
+              await createDirectory(parameters.dirPath, parameters.recursive);
+              result = {
+                content: [{
+                  type: "text",
+                  text: `Successfully created directory at ${parameters.dirPath}`
+                }]
+              };
+            } catch (error) {
+              result = {
+                content: [{
+                  type: "text",
+                  text: error instanceof Error ? error.message : "Unknown error"
+                }]
+              };
+            }
+            break;
+
+          case 'moveDirectory':
+            try {
+              await moveDirectory(parameters.sourcePath, parameters.destinationPath);
+              result = {
+                content: [{
+                  type: "text",
+                  text: `Successfully moved directory from ${parameters.sourcePath} to ${parameters.destinationPath}`
+                }]
+              };
+            } catch (error) {
+              result = {
+                content: [{
+                  type: "text",
+                  text: error instanceof Error ? error.message : "Unknown error"
+                }]
+              };
+            }
+            break;
+
+          case 'copyDirectory':
+            try {
+              await copyDirectory(
+                parameters.sourcePath,
+                parameters.destinationPath,
+                {
+                  overwrite: parameters.overwrite,
+                  errorOnExist: parameters.errorOnExist
+                }
+              );
+              result = {
+                content: [{
+                  type: "text",
+                  text: `Successfully copied directory from ${parameters.sourcePath} to ${parameters.destinationPath}`
+                }]
+              };
+            } catch (error) {
+              result = {
+                content: [{
+                  type: "text",
+                  text: error instanceof Error ? error.message : "Unknown error"
+                }]
+              };
+            }
+            break;
+
+          case 'deleteDirectory':
+            try {
+              await deleteDirectory(parameters.dirPath, parameters.recursive);
+              result = {
+                content: [{
+                  type: "text",
+                  text: `Successfully deleted directory at ${parameters.dirPath}`
+                }]
+              };
+            } catch (error) {
+              result = {
+                content: [{
+                  type: "text",
+                  text: error instanceof Error ? error.message : "Unknown error"
+                }]
+              };
+            }
+            break;
+
+          case 'getDirectoryTree':
+            try {
+              const tree = await getDirectoryTree(
+                parameters.dirPath,
+                {
+                  maxDepth: parameters.maxDepth,
+                  includeFiles: parameters.includeFiles,
+                  includeDirs: parameters.includeDirs,
+                  includeSize: parameters.includeSize,
+                  extensions: parameters.extensions,
+                  exclude: parameters.exclude
+                }
+              );
+              result = {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify(tree, null, 2)
+                }]
+              };
+            } catch (error) {
+              result = {
+                content: [{
+                  type: "text",
+                  text: error instanceof Error ? error.message : "Unknown error"
+                }]
+              };
+            }
+            break;
+
+          case 'combinationTask':
+            try {
+              const results = await combinationTask(
+                parameters.workingDir,
+                parameters.tasks,
+                { stopOnError: parameters.stopOnError }
+              );
+
+              // Format results for display
+              const formattedResults = results.map(result => {
+                if (result.success) {
+                  return {
+                    taskType: result.taskType,
+                    success: true,
+                    result: typeof result.result === 'object'
+                      ? JSON.stringify(result.result, null, 2)
+                      : result.result
+                  };
+                } else {
+                  return {
+                    taskType: result.taskType,
+                    success: false,
+                    error: result.error
+                  };
+                }
+              });
+
+              result = {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify(formattedResults, null, 2)
+                }]
+              };
+            } catch (error) {
+              result = {
+                content: [{
+                  type: "text",
+                  text: error instanceof Error ? error.message : "Unknown error"
+                }]
+              };
+            }
+            break;
+
           default:
             throw new Error(`Tool not found: ${name}`);
         }
-        
+
         // Send the result via SSE
         const responseMsg = {
           id,
           type: 'tool_result',
           content: result
         };
-        
+
         // Log message for debugging
         console.log(`Sending tool result for message ${id} to client ${clientId}`);
-        
+
         // For cross-device compatibility, make the HTTP response the primary method
         // and SSE the fallback
-        
+
         // Return the result directly in the HTTP response (primary method)
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Content-Type', 'application/json');
         res.status(200).json(responseMsg);
-        
+
         // Also try to send via SSE in the background if the connection is active
         try {
           if (sessions.has(clientId)) {
@@ -368,17 +968,17 @@ app.post('/messages', async (req: Request, res: Response) => {
         }
       } catch (err) {
         console.error(`Error processing tool for client ${clientId}:`, err);
-        
+
         // Only delete the session if it's a connection error
-        if (err instanceof Error && 
-            (err.message.includes('socket') || 
+        if (err instanceof Error &&
+            (err.message.includes('socket') ||
              err.message.includes('connection') ||
              err.message.includes('network'))) {
           console.log(`Removing broken session for client ${clientId}`);
           sessions.delete(clientId);
         }
-        
-        res.status(500).json({ 
+
+        res.status(500).json({
           error: 'Internal server error',
           message: err instanceof Error ? err.message : String(err)
         });
@@ -390,7 +990,7 @@ app.post('/messages', async (req: Request, res: Response) => {
     }
   } catch (err) {
     console.error(`Error processing message ${id}:`, err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Internal server error',
       message: err instanceof Error ? err.message : String(err)
     });
@@ -420,7 +1020,7 @@ process.on('SIGINT', shutdown);
 
 function shutdown() {
   console.log('Shutting down server...');
-  
+
   // Close all SSE connections
   for (const [clientId, session] of sessions.entries()) {
     try {
@@ -430,16 +1030,16 @@ function shutdown() {
       console.error(`Error closing connection for client ${clientId}:`, err);
     }
   }
-  
+
   // Clear all sessions
   sessions.clear();
-  
+
   // Close HTTP server
   httpServer.close(() => {
     console.log('HTTP server closed');
     process.exit(0);
   });
-  
+
   // Force exit after timeout
   setTimeout(() => {
     console.error('Forcing server shutdown after timeout');
@@ -454,7 +1054,7 @@ function startServer(port: number, maxRetries = 3, retryCount = 0) {
   }).on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
       console.warn(`Port ${port} is already in use.`);
-      
+
       if (retryCount < maxRetries) {
         const nextPort = port + 1;
         console.log(`Trying next port: ${nextPort}`);
