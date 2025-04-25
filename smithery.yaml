@@ -17,11 +17,11 @@ startCommand:
   commandFunction: |
     (config) => ({
       command: 'node',
-      args: ['bin/cli.js'],
+      args: ['dist/smithery-adapter.js'],
       env: {
         NODE_ENV: 'production',
         SERVER_NAME: config.SERVER_NAME || 'MCP System Tools',
         SERVER_VERSION: config.SERVER_VERSION || '1.0.0',
-        DEFAULT_WORKSPACE: config.DEFAULT_WORKSPACE || ''
+        DEFAULT_WORKSPACE: config.DEFAULT_WORKSPACE || '/app/mcp-workspace'
       }
-    }) 
+    })
