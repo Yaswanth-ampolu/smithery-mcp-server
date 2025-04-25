@@ -3,6 +3,8 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import dotenv from "dotenv";
+import { createReadStream } from "fs";
+import readline from "readline";
 import { getDefaultWorkspace, ensureWorkspaceExists, resolveWorkspacePath } from "./platform-paths.js";
 // Load environment variables
 dotenv.config();
@@ -474,6 +476,16 @@ export async function combinationTask(workingDir, tasks, options = {}) {
             const adjustedParams = { ...task.params };
             // Handle different task types
             switch (task.type) {
+                case 'runShellCommand':
+                    // For shell commands, we'll use the working directory as the cwd
+                    result = await runShellCommand(adjustedParams.command);
+                    break;
+                case 'runPythonFile':
+                    if (adjustedParams.filePath) {
+                        adjustedParams.filePath = path.join(workingDir, adjustedParams.filePath);
+                    }
+                    result = await runPythonFile(adjustedParams.filePath, adjustedParams.args);
+                    break;
                 case 'readFile':
                     if (adjustedParams.filePath) {
                         adjustedParams.filePath = path.join(workingDir, adjustedParams.filePath);
@@ -619,6 +631,25 @@ export async function combinationTask(workingDir, tasks, options = {}) {
                         includeSize: adjustedParams.includeSize,
                         extensions: adjustedParams.extensions,
                         exclude: adjustedParams.exclude
+                    });
+                    break;
+                case 'grep':
+                    // Adjust file paths to use the working directory
+                    if (adjustedParams.filePaths) {
+                        if (Array.isArray(adjustedParams.filePaths)) {
+                            adjustedParams.filePaths = adjustedParams.filePaths.map((filePath) => path.join(workingDir, filePath));
+                        }
+                        else {
+                            adjustedParams.filePaths = path.join(workingDir, adjustedParams.filePaths);
+                        }
+                    }
+                    result = await grepFiles(adjustedParams.pattern, adjustedParams.filePaths, {
+                        useRegex: adjustedParams.useRegex,
+                        caseSensitive: adjustedParams.caseSensitive,
+                        beforeContext: adjustedParams.beforeContext,
+                        afterContext: adjustedParams.afterContext,
+                        maxMatches: adjustedParams.maxMatches,
+                        encoding: adjustedParams.encoding
                     });
                     break;
                 default:
@@ -810,6 +841,149 @@ export async function copyDirectory(sourcePath, destinationPath, options = {}) {
         }
         throw new Error(`Unknown error occurred`);
     }
+}
+/**
+ * Search for patterns in files (grep)
+ */
+export async function grepFiles(pattern, filePaths, options = {}) {
+    // Set default options
+    const useRegex = options.useRegex ?? true;
+    const caseSensitive = options.caseSensitive ?? false;
+    const beforeContext = options.beforeContext ?? 0;
+    const afterContext = options.afterContext ?? 0;
+    const maxMatches = options.maxMatches ?? Infinity;
+    const encoding = options.encoding || 'utf8';
+    // Convert single file path to array
+    const files = Array.isArray(filePaths) ? filePaths : [filePaths];
+    // Prepare regex pattern
+    let regex;
+    try {
+        if (useRegex) {
+            regex = new RegExp(pattern, caseSensitive ? 'g' : 'gi');
+        }
+        else {
+            // Escape special regex characters if not using regex
+            const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            regex = new RegExp(escapedPattern, caseSensitive ? 'g' : 'gi');
+        }
+    }
+    catch (error) {
+        throw new Error(`Invalid regex pattern: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const matches = [];
+    let totalMatches = 0;
+    // Process each file
+    for (const filePath of files) {
+        try {
+            // Resolve path relative to workspace
+            const resolvedPath = resolveWorkspacePath(filePath, DEFAULT_WORKSPACE);
+            // Check if file exists and is a file
+            const stats = await fs.stat(resolvedPath);
+            if (!stats.isFile()) {
+                throw new Error(`Not a file: ${filePath}`);
+            }
+            // Create a read stream for the file
+            const fileStream = createReadStream(resolvedPath, { encoding });
+            const rl = readline.createInterface({
+                input: fileStream,
+                crlfDelay: Infinity
+            });
+            // Keep a buffer of previous lines for context
+            const contextBuffer = [];
+            let lineNumber = 0;
+            let pendingAfterContext = [];
+            let collectingAfterContext = false;
+            let afterContextRemaining = 0;
+            // Process each line
+            for await (const line of rl) {
+                lineNumber++;
+                // Add line to context buffer
+                if (beforeContext > 0) {
+                    contextBuffer.push(line);
+                    if (contextBuffer.length > beforeContext) {
+                        contextBuffer.shift();
+                    }
+                }
+                // Check if we're collecting after context for previous matches
+                if (collectingAfterContext) {
+                    for (const pending of pendingAfterContext) {
+                        pending.afterContext = pending.afterContext || [];
+                        pending.afterContext.push(line);
+                    }
+                    afterContextRemaining--;
+                    if (afterContextRemaining <= 0) {
+                        // Add all completed matches to the results
+                        for (const pending of pendingAfterContext) {
+                            matches.push({
+                                file: filePath,
+                                line: pending.lineNumber,
+                                content: pending.content,
+                                match: pending.match,
+                                beforeContext: pending.beforeContext,
+                                afterContext: pending.afterContext
+                            });
+                            totalMatches++;
+                            if (totalMatches >= maxMatches) {
+                                rl.close();
+                                fileStream.close();
+                                return matches;
+                            }
+                        }
+                        pendingAfterContext = [];
+                        collectingAfterContext = false;
+                    }
+                }
+                // Check if line matches the pattern
+                const lineMatches = line.match(regex);
+                if (lineMatches) {
+                    const match = {
+                        lineNumber: lineNumber,
+                        file: filePath,
+                        line: lineNumber,
+                        content: line,
+                        match: lineMatches[0],
+                        beforeContext: beforeContext > 0 ? [...contextBuffer] : []
+                    };
+                    if (afterContext > 0) {
+                        // Start collecting after context
+                        collectingAfterContext = true;
+                        afterContextRemaining = afterContext;
+                        pendingAfterContext.push(match);
+                    }
+                    else {
+                        // Add match directly to results
+                        matches.push(match);
+                        totalMatches++;
+                        if (totalMatches >= maxMatches) {
+                            rl.close();
+                            fileStream.close();
+                            return matches;
+                        }
+                    }
+                }
+            }
+            // Add any remaining pending matches (with partial after context)
+            for (const pending of pendingAfterContext) {
+                matches.push({
+                    file: filePath,
+                    line: pending.lineNumber,
+                    content: pending.content,
+                    match: pending.match,
+                    beforeContext: pending.beforeContext,
+                    afterContext: pending.afterContext
+                });
+                totalMatches++;
+                if (totalMatches >= maxMatches) {
+                    return matches;
+                }
+            }
+        }
+        catch (error) {
+            // Skip files that can't be read and continue with others
+            console.error(`Error processing file ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    return matches;
 }
 /**
  * Move a directory from one location to another

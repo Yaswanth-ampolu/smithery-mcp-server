@@ -111,6 +111,28 @@ export declare function copyDirectory(sourcePath: string, destinationPath: strin
     errorOnExist?: boolean;
 }): Promise<void>;
 /**
+ * Interface for grep match result
+ */
+export interface GrepMatch {
+    file: string;
+    line: number;
+    content: string;
+    match: string;
+    beforeContext?: string[];
+    afterContext?: string[];
+}
+/**
+ * Search for patterns in files (grep)
+ */
+export declare function grepFiles(pattern: string, filePaths: string | string[], options?: {
+    useRegex?: boolean;
+    caseSensitive?: boolean;
+    beforeContext?: number;
+    afterContext?: number;
+    maxMatches?: number;
+    encoding?: BufferEncoding;
+}): Promise<GrepMatch[]>;
+/**
  * Move a directory from one location to another
  * Handles cross-device moves by falling back to recursive copy + delete
  */

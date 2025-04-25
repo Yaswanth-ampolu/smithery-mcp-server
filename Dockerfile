@@ -3,6 +3,14 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    bash \
+    git \
+    curl \
+    openssh-client
+
 # Use non-root user for better security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
@@ -26,11 +34,15 @@ RUN pnpm build
 # Make CLI script executable
 RUN chmod +x bin/cli.js
 
-# Expose the server port (not needed for stdio)
+# Create workspace directory
+RUN mkdir -p /home/appuser/mcp-workspace
+ENV DEFAULT_WORKSPACE=/home/appuser/mcp-workspace
+
+# Expose the server port
 EXPOSE 8080
 
 # Command to run the server
 # For Smithery deployment (stdio mode):
 # CMD ["node", "dist/smithery-adapter.js"]
 # For standalone server:
-CMD ["node", "dist/main.js"] 
+CMD ["node", "dist/main.js"]

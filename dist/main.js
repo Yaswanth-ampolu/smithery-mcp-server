@@ -5,7 +5,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
 import os from "os";
-import { runShellCommand, runPythonFile, readDirectory, copyFile, createFile, readFile, editFile, deleteFile, moveFile, createDirectory, moveDirectory, copyDirectory, deleteDirectory, getDirectoryTree, combinationTask } from "./system.js";
+import { runShellCommand, runPythonFile, readDirectory, copyFile, createFile, readFile, editFile, deleteFile, moveFile, createDirectory, moveDirectory, copyDirectory, deleteDirectory, getDirectoryTree, combinationTask, grepFiles } from "./system.js";
 import { getDefaultWorkspace, ensureWorkspaceExists } from "./platform-paths.js";
 // Load environment variables
 dotenv.config();
@@ -381,6 +381,43 @@ server.tool("getDirectoryTree", "Get a hierarchical representation of a director
         };
     }
 });
+server.tool("grep", "Search for patterns in files (grep)", {
+    pattern: z.string().describe("Pattern to search for (string or regex)"),
+    filePaths: z.union([z.string(), z.array(z.string())]).describe("File path(s) to search in"),
+    useRegex: z.boolean().optional().describe("Treat pattern as regex (default: true)"),
+    caseSensitive: z.boolean().optional().describe("Case sensitive search (default: false)"),
+    beforeContext: z.number().optional().describe("Number of lines of context before match (default: 0)"),
+    afterContext: z.number().optional().describe("Number of lines of context after match (default: 0)"),
+    maxMatches: z.number().optional().describe("Maximum number of matches to return (default: unlimited)"),
+    encoding: z.string().optional().describe("File encoding (default: utf8)"),
+}, async ({ pattern, filePaths, useRegex, caseSensitive, beforeContext, afterContext, maxMatches, encoding }) => {
+    try {
+        const matches = await grepFiles(pattern, filePaths, {
+            useRegex,
+            caseSensitive,
+            beforeContext,
+            afterContext,
+            maxMatches,
+            encoding: encoding
+        });
+        return {
+            content: [{
+                    type: "text",
+                    text: JSON.stringify(matches, null, 2)
+                }],
+        };
+    }
+    catch (error) {
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: error instanceof Error ? error.message : "Unknown error"
+                }
+            ],
+        };
+    }
+});
 server.tool("combinationTask", "Run a sequence of operations with a common working directory", {
     workingDir: z.string().describe("Working directory for all operations"),
     tasks: z.array(z.object({
@@ -736,6 +773,32 @@ app.post('/messages', async (req, res) => {
                                 content: [{
                                         type: "text",
                                         text: JSON.stringify(tree, null, 2)
+                                    }]
+                            };
+                        }
+                        catch (error) {
+                            result = {
+                                content: [{
+                                        type: "text",
+                                        text: error instanceof Error ? error.message : "Unknown error"
+                                    }]
+                            };
+                        }
+                        break;
+                    case 'grep':
+                        try {
+                            const matches = await grepFiles(parameters.pattern, parameters.filePaths, {
+                                useRegex: parameters.useRegex,
+                                caseSensitive: parameters.caseSensitive,
+                                beforeContext: parameters.beforeContext,
+                                afterContext: parameters.afterContext,
+                                maxMatches: parameters.maxMatches,
+                                encoding: parameters.encoding
+                            });
+                            result = {
+                                content: [{
+                                        type: "text",
+                                        text: JSON.stringify(matches, null, 2)
                                     }]
                             };
                         }

@@ -1,0 +1,8 @@
+This is a test file for grep functionality.
+We will search for patterns in this file.
+The grep tool should find this line with the word "grep".
+It should also support regex patterns like \d+ for numbers: 12345.
+This line has multiple occurrences of the word grep, grep, grep.
+Context lines before and after matches should be included.
+Case sensitivity can be toggled for searching.
+The end of the test file.

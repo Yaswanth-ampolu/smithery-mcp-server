@@ -8,7 +8,18 @@ import {
   runPythonFile,
   readDirectory,
   copyFile,
-  createFile
+  createFile,
+  readFile,
+  editFile,
+  deleteFile,
+  moveFile,
+  createDirectory,
+  moveDirectory,
+  copyDirectory,
+  deleteDirectory,
+  getDirectoryTree,
+  grepFiles,
+  combinationTask
 } from "./system.js";
 import { getDefaultWorkspace, ensureWorkspaceExists } from "./platform-paths.js";
 
@@ -89,18 +100,18 @@ server.tool(
       const result = await readDirectory(dirPath || "");
       return {
         content: [
-          { 
-            type: "text", 
-            text: JSON.stringify(result, null, 2) 
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2)
           }
         ],
       };
     } catch (error) {
       return {
         content: [
-          { 
-            type: "text", 
-            text: error instanceof Error ? error.message : "Unknown error" 
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
           }
         ],
       };
@@ -120,18 +131,18 @@ server.tool(
       await copyFile(sourcePath, destinationPath);
       return {
         content: [
-          { 
-            type: "text", 
-            text: `Successfully copied file from ${sourcePath} to ${destinationPath}` 
+          {
+            type: "text",
+            text: `Successfully copied file from ${sourcePath} to ${destinationPath}`
           }
         ],
       };
     } catch (error) {
       return {
         content: [
-          { 
-            type: "text", 
-            text: error instanceof Error ? error.message : "Unknown error" 
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
           }
         ],
       };
@@ -151,18 +162,420 @@ server.tool(
       await createFile(filePath, content);
       return {
         content: [
-          { 
-            type: "text", 
-            text: `Successfully created file at ${filePath}` 
+          {
+            type: "text",
+            text: `Successfully created file at ${filePath}`
           }
         ],
       };
     } catch (error) {
       return {
         content: [
-          { 
-            type: "text", 
-            text: error instanceof Error ? error.message : "Unknown error" 
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "readFile",
+  "Read the contents of a file",
+  {
+    filePath: z.string().describe("Path to the file to read"),
+    encoding: z.string().optional().describe("File encoding (default: utf8)"),
+    startLine: z.number().optional().describe("Start line (0-based, inclusive)"),
+    endLine: z.number().optional().describe("End line (0-based, inclusive)"),
+  },
+  async ({ filePath, encoding, startLine, endLine }) => {
+    try {
+      const content = await readFile(filePath, {
+        encoding: encoding as BufferEncoding,
+        startLine,
+        endLine
+      });
+      return {
+        content: [{ type: "text", text: content }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "editFile",
+  "Edit an existing file",
+  {
+    filePath: z.string().describe("Path to the file to edit"),
+    operation: z.enum(["append", "prepend", "replace", "insert"]).describe("Edit operation"),
+    content: z.string().describe("Content to add or replace with"),
+    lineNumber: z.number().optional().describe("Line number for insert operation (0-based)"),
+    startLine: z.number().optional().describe("Start line for replace operation (0-based, inclusive)"),
+    endLine: z.number().optional().describe("End line for replace operation (0-based, inclusive)"),
+    encoding: z.string().optional().describe("File encoding (default: utf8)"),
+  },
+  async ({ filePath, operation, content, lineNumber, startLine, endLine, encoding }) => {
+    try {
+      await editFile(filePath, {
+        operation,
+        content,
+        lineNumber,
+        startLine,
+        endLine,
+        encoding: encoding as BufferEncoding
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully edited file at ${filePath}`
+          }
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "deleteFile",
+  "Delete a file",
+  {
+    filePath: z.string().describe("Path to the file to delete"),
+  },
+  async ({ filePath }) => {
+    try {
+      await deleteFile(filePath);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully deleted file at ${filePath}`
+          }
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "moveFile",
+  "Move a file from one location to another",
+  {
+    sourcePath: z.string().describe("Path to the source file"),
+    destinationPath: z.string().describe("Path to the destination file"),
+  },
+  async ({ sourcePath, destinationPath }) => {
+    try {
+      await moveFile(sourcePath, destinationPath);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully moved file from ${sourcePath} to ${destinationPath}`
+          }
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "createDirectory",
+  "Create a new directory",
+  {
+    dirPath: z.string().describe("Path to the directory to create"),
+    recursive: z.boolean().optional().describe("Create parent directories if they don't exist (default: true)"),
+  },
+  async ({ dirPath, recursive }) => {
+    try {
+      await createDirectory(dirPath, recursive);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully created directory at ${dirPath}`
+          }
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "moveDirectory",
+  "Move a directory from one location to another",
+  {
+    sourcePath: z.string().describe("Path to the source directory"),
+    destinationPath: z.string().describe("Path to the destination directory"),
+  },
+  async ({ sourcePath, destinationPath }) => {
+    try {
+      await moveDirectory(sourcePath, destinationPath);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully moved directory from ${sourcePath} to ${destinationPath}`
+          }
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "copyDirectory",
+  "Copy a directory from one location to another",
+  {
+    sourcePath: z.string().describe("Path to the source directory"),
+    destinationPath: z.string().describe("Path to the destination directory"),
+    overwrite: z.boolean().optional().describe("Overwrite existing files (default: false)"),
+    errorOnExist: z.boolean().optional().describe("Throw error if destination exists (default: false)"),
+  },
+  async ({ sourcePath, destinationPath, overwrite, errorOnExist }) => {
+    try {
+      await copyDirectory(sourcePath, destinationPath, { overwrite, errorOnExist });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully copied directory from ${sourcePath} to ${destinationPath}`
+          }
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "deleteDirectory",
+  "Delete a directory",
+  {
+    dirPath: z.string().describe("Path to the directory to delete"),
+    recursive: z.boolean().optional().describe("Delete subdirectories and files (default: true)"),
+  },
+  async ({ dirPath, recursive }) => {
+    try {
+      await deleteDirectory(dirPath, recursive);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully deleted directory at ${dirPath}`
+          }
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "getDirectoryTree",
+  "Get a hierarchical representation of a directory",
+  {
+    dirPath: z.string().describe("Path to the directory"),
+    maxDepth: z.number().optional().describe("Maximum depth to traverse (default: unlimited)"),
+    includeFiles: z.boolean().optional().describe("Include files in the tree (default: true)"),
+    includeDirs: z.boolean().optional().describe("Include directories in the tree (default: true)"),
+    includeSize: z.boolean().optional().describe("Include file sizes (default: false)"),
+    extensions: z.array(z.string()).optional().describe("Filter files by extensions (default: all files)"),
+    exclude: z.array(z.string()).optional().describe("Paths to exclude from the tree (default: none)"),
+  },
+  async ({ dirPath, maxDepth, includeFiles, includeDirs, includeSize, extensions, exclude }) => {
+    try {
+      const tree = await getDirectoryTree(dirPath, {
+        maxDepth,
+        includeFiles,
+        includeDirs,
+        includeSize,
+        extensions,
+        exclude
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(tree, null, 2)
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "grep",
+  "Search for patterns in files (grep)",
+  {
+    pattern: z.string().describe("Pattern to search for (string or regex)"),
+    filePaths: z.union([z.string(), z.array(z.string())]).describe("File path(s) to search in"),
+    useRegex: z.boolean().optional().describe("Treat pattern as regex (default: true)"),
+    caseSensitive: z.boolean().optional().describe("Case sensitive search (default: false)"),
+    beforeContext: z.number().optional().describe("Number of lines of context before match (default: 0)"),
+    afterContext: z.number().optional().describe("Number of lines of context after match (default: 0)"),
+    maxMatches: z.number().optional().describe("Maximum number of matches to return (default: unlimited)"),
+    encoding: z.string().optional().describe("File encoding (default: utf8)"),
+  },
+  async ({ pattern, filePaths, useRegex, caseSensitive, beforeContext, afterContext, maxMatches, encoding }) => {
+    try {
+      const matches = await grepFiles(pattern, filePaths, {
+        useRegex,
+        caseSensitive,
+        beforeContext,
+        afterContext,
+        maxMatches,
+        encoding: encoding as BufferEncoding
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(matches, null, 2)
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
+          }
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
+  "combinationTask",
+  "Run a sequence of operations with a common working directory",
+  {
+    workingDir: z.string().describe("Working directory for all tasks"),
+    tasks: z.array(
+      z.object({
+        type: z.string().describe("Task type"),
+        params: z.record(z.any()).describe("Task parameters")
+      })
+    ).describe("List of tasks to execute"),
+    stopOnError: z.boolean().optional().describe("Stop execution on first error (default: true)"),
+  },
+  async ({ workingDir, tasks, stopOnError }) => {
+    try {
+      const results = await combinationTask(workingDir, tasks, { stopOnError });
+
+      // Format results for display
+      const formattedResults = results.map(result => {
+        if (result.success) {
+          return {
+            taskType: result.taskType,
+            success: true,
+            result: typeof result.result === 'object'
+              ? JSON.stringify(result.result, null, 2)
+              : result.result
+          };
+        } else {
+          return {
+            taskType: result.taskType,
+            success: false,
+            error: result.error
+          };
+        }
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(formattedResults, null, 2)
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: error instanceof Error ? error.message : "Unknown error"
           }
         ],
       };
@@ -177,4 +590,4 @@ const transport = new StdioServerTransport();
 server.connect(transport).catch(err => {
   console.error("Error connecting to transport:", err);
   process.exit(1);
-}); 
+});
