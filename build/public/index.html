@@ -49,6 +49,13 @@
     button:hover {
       background-color: #45a049;
     }
+    .danger-btn {
+      background-color: #dc3545;
+      color: white;
+    }
+    .danger-btn:hover {
+      background-color: #bd2130;
+    }
     .output {
       background-color: #f8f8f8;
       padding: 15px;
@@ -86,10 +93,10 @@
 </head>
 <body>
   <h1>MCP Server Client</h1>
-  
+
   <div class="status" id="connection-status">Disconnected</div>
   <button id="debug-button" style="margin-bottom: 20px;">Debug Connection</button>
-  
+
   <div class="tool-card">
     <h2>Run Shell Command</h2>
     <div class="form-group">
@@ -99,7 +106,7 @@
     <button id="run-command">Run Command</button>
     <div class="output" id="command-output"></div>
   </div>
-  
+
   <div class="tool-card">
     <h2>Run Python File</h2>
     <div class="form-group">
@@ -113,7 +120,7 @@
     <button id="run-python">Run Python</button>
     <div class="output" id="python-output"></div>
   </div>
-  
+
   <div class="tool-card">
     <h2>Read Directory</h2>
     <div class="form-group">
@@ -123,7 +130,7 @@
     <button id="read-dir">Read Directory</button>
     <div class="output" id="dir-output"></div>
   </div>
-  
+
   <div class="tool-card">
     <h2>Copy File</h2>
     <div class="form-group">
@@ -137,7 +144,7 @@
     <button id="copy-file">Copy File</button>
     <div class="output" id="copy-output"></div>
   </div>
-  
+
   <div class="tool-card">
     <h2>Create File</h2>
     <div class="form-group">
@@ -152,48 +159,344 @@
     <div class="output" id="create-output"></div>
   </div>
 
+  <div class="tool-card">
+    <h2>Read File</h2>
+    <div class="form-group">
+      <label for="read-file-path">File Path:</label>
+      <input type="text" id="read-file-path" placeholder="/path/to/file.txt">
+    </div>
+    <div class="form-group">
+      <label for="read-file-encoding">Encoding (optional):</label>
+      <input type="text" id="read-file-encoding" placeholder="utf8">
+    </div>
+    <div class="form-group">
+      <label for="read-file-start">Start Line (optional):</label>
+      <input type="number" id="read-file-start" placeholder="0">
+    </div>
+    <div class="form-group">
+      <label for="read-file-end">End Line (optional):</label>
+      <input type="number" id="read-file-end" placeholder="10">
+    </div>
+    <button id="read-file-btn">Read File</button>
+    <div class="output" id="read-file-output"></div>
+  </div>
+
+  <div class="tool-card">
+    <h2>Edit File</h2>
+    <div class="form-group">
+      <label for="edit-file-path">File Path:</label>
+      <input type="text" id="edit-file-path" placeholder="/path/to/file.txt">
+    </div>
+    <div class="form-group">
+      <label for="edit-file-operation">Operation:</label>
+      <select id="edit-file-operation">
+        <option value="append">Append</option>
+        <option value="prepend">Prepend</option>
+        <option value="replace">Replace</option>
+        <option value="insert">Insert</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="edit-file-content">Content:</label>
+      <textarea id="edit-file-content" rows="4" placeholder="Content to add or replace with"></textarea>
+    </div>
+    <div class="form-group line-number-group" style="display: none;">
+      <label for="edit-file-line-number">Line Number:</label>
+      <input type="number" id="edit-file-line-number" placeholder="0">
+    </div>
+    <div class="form-group line-range-group" style="display: none;">
+      <label for="edit-file-start-line">Start Line:</label>
+      <input type="number" id="edit-file-start-line" placeholder="0">
+    </div>
+    <div class="form-group line-range-group" style="display: none;">
+      <label for="edit-file-end-line">End Line:</label>
+      <input type="number" id="edit-file-end-line" placeholder="10">
+    </div>
+    <div class="form-group">
+      <label for="edit-file-encoding">Encoding (optional):</label>
+      <input type="text" id="edit-file-encoding" placeholder="utf8">
+    </div>
+    <button id="edit-file-btn">Edit File</button>
+    <div class="output" id="edit-file-output"></div>
+  </div>
+
+  <div class="tool-card">
+    <h2>Delete File</h2>
+    <div class="form-group">
+      <label for="delete-file-path">File Path:</label>
+      <input type="text" id="delete-file-path" placeholder="/path/to/file.txt">
+    </div>
+    <button id="delete-file-btn" class="danger-btn">Delete File</button>
+    <div class="output" id="delete-file-output"></div>
+  </div>
+
+  <div class="tool-card">
+    <h2>Move File</h2>
+    <div class="form-group">
+      <label for="move-source-path">Source Path:</label>
+      <input type="text" id="move-source-path" placeholder="/path/to/source">
+    </div>
+    <div class="form-group">
+      <label for="move-dest-path">Destination Path:</label>
+      <input type="text" id="move-dest-path" placeholder="/path/to/destination">
+    </div>
+    <button id="move-file-btn">Move File</button>
+    <div class="output" id="move-file-output"></div>
+  </div>
+
+  <div class="tool-card">
+    <h2>Create Directory</h2>
+    <div class="form-group">
+      <label for="create-dir-path">Directory Path:</label>
+      <input type="text" id="create-dir-path" placeholder="/path/to/directory">
+    </div>
+    <div class="form-group">
+      <label for="create-dir-recursive">Create Parent Directories:</label>
+      <input type="checkbox" id="create-dir-recursive" checked>
+    </div>
+    <button id="create-dir-btn">Create Directory</button>
+    <div class="output" id="create-dir-output"></div>
+  </div>
+
+  <div class="tool-card">
+    <h2>Move Directory</h2>
+    <div class="form-group">
+      <label for="move-dir-source-path">Source Path:</label>
+      <input type="text" id="move-dir-source-path" placeholder="/path/to/source/directory">
+    </div>
+    <div class="form-group">
+      <label for="move-dir-dest-path">Destination Path:</label>
+      <input type="text" id="move-dir-dest-path" placeholder="/path/to/destination">
+    </div>
+    <button id="move-dir-btn">Move Directory</button>
+    <div class="output" id="move-dir-output"></div>
+  </div>
+
+  <div class="tool-card">
+    <h2>Copy Directory</h2>
+    <div class="form-group">
+      <label for="copy-dir-source-path">Source Path:</label>
+      <input type="text" id="copy-dir-source-path" placeholder="/path/to/source/directory">
+    </div>
+    <div class="form-group">
+      <label for="copy-dir-dest-path">Destination Path:</label>
+      <input type="text" id="copy-dir-dest-path" placeholder="/path/to/destination">
+    </div>
+    <div class="form-group">
+      <label for="copy-dir-overwrite">Overwrite Existing Files:</label>
+      <input type="checkbox" id="copy-dir-overwrite">
+    </div>
+    <div class="form-group">
+      <label for="copy-dir-error-on-exist">Error on Existing Files:</label>
+      <input type="checkbox" id="copy-dir-error-on-exist">
+    </div>
+    <button id="copy-dir-btn">Copy Directory</button>
+    <div class="output" id="copy-dir-output"></div>
+  </div>
+
+  <div class="tool-card">
+    <h2>Delete Directory</h2>
+    <div class="form-group">
+      <label for="delete-dir-path">Directory Path:</label>
+      <input type="text" id="delete-dir-path" placeholder="/path/to/directory">
+    </div>
+    <div class="form-group">
+      <label for="delete-dir-recursive">Delete Subdirectories and Files:</label>
+      <input type="checkbox" id="delete-dir-recursive" checked>
+    </div>
+    <button id="delete-dir-btn" class="danger-btn">Delete Directory</button>
+    <div class="output" id="delete-dir-output"></div>
+  </div>
+
+  <div class="tool-card">
+    <h2>Directory Tree</h2>
+    <div class="form-group">
+      <label for="dir-tree-path">Directory Path:</label>
+      <input type="text" id="dir-tree-path" placeholder="/path/to/directory">
+    </div>
+    <div class="form-group">
+      <label for="dir-tree-max-depth">Max Depth:</label>
+      <input type="number" id="dir-tree-max-depth" placeholder="Unlimited" min="1">
+    </div>
+    <div class="form-group">
+      <label for="dir-tree-include-files">Include Files:</label>
+      <input type="checkbox" id="dir-tree-include-files" checked>
+    </div>
+    <div class="form-group">
+      <label for="dir-tree-include-dirs">Include Directories:</label>
+      <input type="checkbox" id="dir-tree-include-dirs" checked>
+    </div>
+    <div class="form-group">
+      <label for="dir-tree-include-size">Include File Sizes:</label>
+      <input type="checkbox" id="dir-tree-include-size">
+    </div>
+    <div class="form-group">
+      <label for="dir-tree-extensions">File Extensions (comma-separated):</label>
+      <input type="text" id="dir-tree-extensions" placeholder=".js,.ts,.json">
+    </div>
+    <div class="form-group">
+      <label for="dir-tree-exclude">Exclude Paths (comma-separated):</label>
+      <input type="text" id="dir-tree-exclude" placeholder="node_modules,dist,.git">
+    </div>
+    <button id="dir-tree-btn">Get Directory Tree</button>
+    <div class="output" id="dir-tree-output"></div>
+  </div>
+
+  <div class="tool-card">
+    <h2>Combination Task</h2>
+    <div class="form-group">
+      <label for="combo-working-dir">Working Directory:</label>
+      <input type="text" id="combo-working-dir" placeholder="/path/to/working/directory">
+    </div>
+    <div class="form-group">
+      <label for="combo-stop-on-error">Stop on Error:</label>
+      <input type="checkbox" id="combo-stop-on-error" checked>
+    </div>
+
+    <div id="combo-task-builder">
+      <h3>Task Builder</h3>
+      <div class="form-group">
+        <label for="combo-task-type">Task Type:</label>
+        <select id="combo-task-type">
+          <option value="">-- Select Task Type --</option>
+          <option value="readFile">Read File</option>
+          <option value="createFile">Create File</option>
+          <option value="editFile">Edit File</option>
+          <option value="deleteFile">Delete File</option>
+          <option value="moveFile">Move File</option>
+          <option value="copyFile">Copy File</option>
+          <option value="readDirectory">Read Directory</option>
+          <option value="createDirectory">Create Directory</option>
+          <option value="moveDirectory">Move Directory</option>
+          <option value="copyDirectory">Copy Directory</option>
+          <option value="deleteDirectory">Delete Directory</option>
+          <option value="getDirectoryTree">Get Directory Tree</option>
+        </select>
+      </div>
+
+      <!-- Dynamic parameter fields will be added here -->
+      <div id="combo-params-container"></div>
+
+      <button id="combo-add-task-btn" class="secondary-btn">Add Task</button>
+    </div>
+
+    <div class="form-group">
+      <label>Task Queue:</label>
+      <div id="combo-task-queue" class="task-queue">
+        <div class="empty-queue">No tasks added yet</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="combo-tasks">Tasks JSON (Advanced):</label>
+      <textarea id="combo-tasks" rows="5"></textarea>
+    </div>
+
+    <div class="button-group">
+      <button id="combo-btn">Run Tasks</button>
+      <button id="combo-clear-btn" class="secondary-btn">Clear All</button>
+    </div>
+
+    <div class="output" id="combo-output"></div>
+  </div>
+
+  <style>
+    .task-queue {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .task-item {
+      background-color: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .task-item .task-type {
+      font-weight: bold;
+    }
+
+    .task-item .task-params {
+      color: #666;
+      font-size: 0.9em;
+      margin-top: 4px;
+    }
+
+    .task-item .remove-task {
+      color: #d9534f;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .empty-queue {
+      color: #999;
+      font-style: italic;
+      text-align: center;
+      padding: 10px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .secondary-btn {
+      background-color: #6c757d;
+    }
+  </style>
+
   <script>
     let messageId = 0;
     let eventSource;
     let resultCallbacks = {};
     let clientId = null;
-    
+
     // Add a simple local cache to store responses for short periods
     const responseCache = new Map();
     const MAX_CACHE_AGE = 10000; // 10 seconds
-    
+
     // Connect to the server using SSE
     function connectSSE() {
       const statusElement = document.getElementById('connection-status');
       statusElement.textContent = 'Connecting...';
       statusElement.className = 'status connecting';
-      
+
       // Close existing connection if any
       if (eventSource) {
         eventSource.close();
       }
-      
+
       // Connect to the SSE endpoint
       eventSource = new EventSource('/sse');
-      
+
       eventSource.onopen = () => {
         statusElement.className = 'status';
         console.log('SSE connection established');
       };
-      
+
       eventSource.onerror = (e) => {
         console.error('SSE connection error:', e);
         statusElement.textContent = 'Connection Error';
         statusElement.className = 'status error';
       };
-      
+
       // Handle incoming messages from server
       eventSource.onmessage = (event) => {
         console.log('Received SSE message:', event.data);
-        
+
         try {
           const data = JSON.parse(event.data);
-          
+
           // Store the clientId if this is the initial connection message
           if (data.type === 'connected' && data.clientId) {
             clientId = data.clientId;
@@ -201,7 +504,7 @@
             statusElement.textContent = `Connected (Session ID: ${clientId})`;
             statusElement.className = 'status connected';
           }
-          
+
           // Check if this is a response to a previous message
           if (data.id && resultCallbacks[data.id]) {
             console.log('Found callback for message ID:', data.id);
@@ -215,12 +518,12 @@
         }
       };
     }
-    
+
     // Send a message to the server
     async function sendMessage(type, content) {
       const id = `client-${messageId++}`;
       console.log('Sending message:', id, type, content);
-      
+
       try {
         const response = await fetch('/messages', {
           method: 'POST',
@@ -234,30 +537,30 @@
             clientId
           }),
         });
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           console.error('Error response from server:', response.status, errorData);
-          
+
           // Check if error is due to expired session
           if (errorData.error === 'No active SSE connection') {
             console.log('Session expired, reconnecting...');
             connectSSE(); // Reconnect to get a new clientId
             throw new Error(`${errorData.error}: ${errorData.message}`);
           }
-          
+
           throw new Error(`Server returned ${response.status}: ${JSON.stringify(errorData)}`);
         }
-        
+
         console.log('Message sent successfully, waiting for response');
-        
+
         return new Promise((resolve, reject) => {
           // Set timeout to avoid hanging forever
           const timeoutId = setTimeout(() => {
             delete resultCallbacks[id];
             reject(new Error('Response timeout after 10 seconds'));
           }, 10000);
-          
+
           resultCallbacks[id] = (result) => {
             clearTimeout(timeoutId);
             resolve(result);
@@ -268,37 +571,47 @@
         throw error;
       }
     }
-    
+
     // Invoke a tool - final version with retry mechanism
     async function invokeTool(toolName, parameters) {
       try {
         console.log(`Invoking tool: ${toolName}`, parameters);
-        
+
         // Get the output element
         const outputId = toolName === 'runShellCommand' ? 'command-output' :
                          toolName === 'runPythonFile' ? 'python-output' :
                          toolName === 'readDirectory' ? 'dir-output' :
                          toolName === 'copyFile' ? 'copy-output' :
-                         toolName === 'createFile' ? 'create-output' : null;
-        
+                         toolName === 'createFile' ? 'create-output' :
+                         toolName === 'readFile' ? 'read-file-output' :
+                         toolName === 'editFile' ? 'edit-file-output' :
+                         toolName === 'deleteFile' ? 'delete-file-output' :
+                         toolName === 'moveFile' ? 'move-file-output' :
+                         toolName === 'createDirectory' ? 'create-dir-output' :
+                         toolName === 'moveDirectory' ? 'move-dir-output' :
+                         toolName === 'copyDirectory' ? 'copy-dir-output' :
+                         toolName === 'deleteDirectory' ? 'delete-dir-output' :
+                         toolName === 'getDirectoryTree' ? 'dir-tree-output' :
+                         toolName === 'combinationTask' ? 'combo-output' : null;
+
         if (!outputId) {
           throw new Error(`Unknown tool: ${toolName}`);
         }
-        
+
         const output = document.getElementById(outputId);
         output.textContent = `Running ${toolName}...`;
-        
+
         // Generate a unique ID for this request
         const requestId = `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
+
         // Function to process and extract result text from a response
         const extractResultText = (responseData) => {
           if (!responseData || !responseData.content) {
             return 'No result';
           }
-          
+
           const content = responseData.content;
-          
+
           if (content.content && Array.isArray(content.content) && content.content.length > 0) {
             return content.content[0].text || 'No text in result';
           } else if (Array.isArray(content) && content.length > 0) {
@@ -309,7 +622,7 @@
             return JSON.stringify(content);
           }
         };
-        
+
         // The actual tool invocation with retry
         const attemptInvoke = async (retryCount = 0) => {
           try {
@@ -334,43 +647,43 @@
               cache: 'no-store',
               credentials: 'same-origin'
             });
-            
+
             if (!response.ok) {
               let errorMessage;
               try {
                 const errorData = await response.json();
                 console.error('Error from server:', errorData);
-                
+
                 // Check if we need to reconnect
                 if (errorData.error === 'No active SSE connection') {
                   console.log('Session expired, reconnecting...');
                   connectSSE(); // Reconnect to get a new clientId
-                  
+
                   if (retryCount < 1) {
                     // Wait a moment for reconnection
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     return attemptInvoke(retryCount + 1);
                   }
                 }
-                
+
                 errorMessage = errorData.message || JSON.stringify(errorData);
               } catch (e) {
                 errorMessage = await response.text() || `HTTP error ${response.status}`;
               }
-              
+
               throw new Error(errorMessage);
             }
-            
+
             // Process the response
             const responseData = await response.json();
             console.log('Tool result:', responseData);
-            
+
             // Store in cache for potential retrieval by result polling
             responseCache.set(requestId, {
               data: responseData,
               timestamp: Date.now()
             });
-            
+
             // Return the extracted text
             return extractResultText(responseData);
           } catch (error) {
@@ -383,7 +696,7 @@
             throw error;
           }
         };
-        
+
         // Attempt to invoke the tool with retries
         return await attemptInvoke();
       } catch (error) {
@@ -391,7 +704,7 @@
         return `Error: ${error.message}`;
       }
     }
-    
+
     // Clean up old cache entries periodically
     setInterval(() => {
       const now = Date.now();
@@ -401,12 +714,12 @@
         }
       }
     }, 30000);
-    
+
     // Initialize event listeners
     document.addEventListener('DOMContentLoaded', () => {
       // Connect to SSE
       connectSSE();
-      
+
       // Debug button
       document.getElementById('debug-button').addEventListener('click', async () => {
         try {
@@ -415,9 +728,9 @@
           if (!response.ok) {
             throw new Error(`Server returned ${response.status}: ${await response.text()}`);
           }
-          
+
           const info = await response.json();
-          
+
           // Display debug info
           alert(`Server Info:
 Name: ${info.name}
@@ -432,14 +745,14 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
           alert(`Error fetching server info: ${error.message}`);
         }
       });
-      
+
       // Run Shell Command
       document.getElementById('run-command').addEventListener('click', async () => {
         const command = document.getElementById('command').value;
         const output = document.getElementById('command-output');
-        
+
         output.textContent = 'Running command...';
-        
+
         try {
           // Make a completely direct HTTP call without relying on SSE or callbacks
           const response = await fetch('/messages', {
@@ -461,22 +774,22 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
             }),
             cache: 'no-store'
           });
-          
+
           if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Server error: ${errorText}`);
           }
-          
+
           // Parse the direct response
           const responseData = await response.json();
           console.log('Direct command response:', responseData);
-          
+
           // Extract the result text
           let resultText = 'No result';
-          
+
           if (responseData && responseData.content) {
             const content = responseData.content;
-            
+
             if (content.content && Array.isArray(content.content) && content.content.length > 0) {
               resultText = content.content[0].text || 'No text in result';
             } else if (Array.isArray(content) && content.length > 0) {
@@ -487,22 +800,22 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
               resultText = JSON.stringify(content);
             }
           }
-          
+
           output.textContent = resultText;
         } catch (error) {
           console.error('Command execution error:', error);
           output.textContent = `Error: ${error.message}`;
         }
       });
-      
+
       // Run Python File
       document.getElementById('run-python').addEventListener('click', async () => {
         const filePath = document.getElementById('python-file').value;
         const args = document.getElementById('python-args').value;
         const output = document.getElementById('python-output');
-        
+
         output.textContent = 'Running Python file...';
-        
+
         try {
           // Make a completely direct HTTP call without relying on SSE or callbacks
           const response = await fetch('/messages', {
@@ -524,22 +837,22 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
             }),
             cache: 'no-store'
           });
-          
+
           if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Server error: ${errorText}`);
           }
-          
+
           // Parse the direct response
           const responseData = await response.json();
           console.log('Direct Python response:', responseData);
-          
+
           // Extract the result text
           let resultText = 'No result';
-          
+
           if (responseData && responseData.content) {
             const content = responseData.content;
-            
+
             if (content.content && Array.isArray(content.content) && content.content.length > 0) {
               resultText = content.content[0].text || 'No text in result';
             } else if (Array.isArray(content) && content.length > 0) {
@@ -550,24 +863,24 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
               resultText = JSON.stringify(content);
             }
           }
-          
+
           output.textContent = resultText;
         } catch (error) {
           console.error('Python execution error:', error);
           output.textContent = `Error: ${error.message}`;
         }
       });
-      
+
       // Read Directory
       document.getElementById('read-dir').addEventListener('click', async () => {
         const dirPath = document.getElementById('dir-path').value;
         const output = document.getElementById('dir-output');
-        
+
         output.textContent = 'Reading directory...';
-        
+
         try {
           const result = await invokeTool('readDirectory', { dirPath });
-          
+
           // Try to parse and format the JSON result
           try {
             const data = JSON.parse(result);
@@ -579,15 +892,15 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
           output.textContent = `Error: ${error.message}`;
         }
       });
-      
+
       // Copy File
       document.getElementById('copy-file').addEventListener('click', async () => {
         const sourcePath = document.getElementById('source-path').value;
         const destinationPath = document.getElementById('dest-path').value;
         const output = document.getElementById('copy-output');
-        
+
         output.textContent = 'Copying file...';
-        
+
         try {
           const result = await invokeTool('copyFile', { sourcePath, destinationPath });
           output.textContent = result;
@@ -595,15 +908,15 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
           output.textContent = `Error: ${error.message}`;
         }
       });
-      
+
       // Create File
       document.getElementById('create-file').addEventListener('click', async () => {
         const filePath = document.getElementById('file-path').value;
         const content = document.getElementById('file-content').value;
         const output = document.getElementById('create-output');
-        
+
         output.textContent = 'Creating file...';
-        
+
         try {
           const result = await invokeTool('createFile', { filePath, content });
           output.textContent = result;
@@ -611,8 +924,603 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
           output.textContent = `Error: ${error.message}`;
         }
       });
+
+      // Read File
+      document.getElementById('read-file-btn').addEventListener('click', async () => {
+        const filePath = document.getElementById('read-file-path').value;
+        const encoding = document.getElementById('read-file-encoding').value || undefined;
+        const startLine = document.getElementById('read-file-start').value
+          ? parseInt(document.getElementById('read-file-start').value)
+          : undefined;
+        const endLine = document.getElementById('read-file-end').value
+          ? parseInt(document.getElementById('read-file-end').value)
+          : undefined;
+        const output = document.getElementById('read-file-output');
+
+        output.textContent = 'Reading file...';
+
+        try {
+          const result = await invokeTool('readFile', {
+            filePath,
+            encoding,
+            startLine,
+            endLine
+          });
+          output.textContent = result;
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+
+      // Edit File - Show/hide fields based on operation
+      document.getElementById('edit-file-operation').addEventListener('change', function() {
+        const operation = this.value;
+        const lineNumberGroup = document.querySelector('.line-number-group');
+        const lineRangeGroup = document.querySelectorAll('.line-range-group');
+
+        // Hide all operation-specific fields first
+        lineNumberGroup.style.display = 'none';
+        lineRangeGroup.forEach(el => el.style.display = 'none');
+
+        // Show relevant fields based on operation
+        if (operation === 'insert') {
+          lineNumberGroup.style.display = 'block';
+        } else if (operation === 'replace') {
+          lineRangeGroup.forEach(el => el.style.display = 'block');
+        }
+      });
+
+      // Edit File
+      document.getElementById('edit-file-btn').addEventListener('click', async () => {
+        const filePath = document.getElementById('edit-file-path').value;
+        const operation = document.getElementById('edit-file-operation').value;
+        const content = document.getElementById('edit-file-content').value;
+        const lineNumber = document.getElementById('edit-file-line-number').value
+          ? parseInt(document.getElementById('edit-file-line-number').value)
+          : undefined;
+        const startLine = document.getElementById('edit-file-start-line').value
+          ? parseInt(document.getElementById('edit-file-start-line').value)
+          : undefined;
+        const endLine = document.getElementById('edit-file-end-line').value
+          ? parseInt(document.getElementById('edit-file-end-line').value)
+          : undefined;
+        const encoding = document.getElementById('edit-file-encoding').value || undefined;
+        const output = document.getElementById('edit-file-output');
+
+        output.textContent = 'Editing file...';
+
+        try {
+          const result = await invokeTool('editFile', {
+            filePath,
+            operation,
+            content,
+            lineNumber,
+            startLine,
+            endLine,
+            encoding
+          });
+          output.textContent = result;
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+
+      // Delete File
+      document.getElementById('delete-file-btn').addEventListener('click', async () => {
+        const filePath = document.getElementById('delete-file-path').value;
+        const output = document.getElementById('delete-file-output');
+
+        // Add confirmation to prevent accidental deletion
+        if (!confirm(`Are you sure you want to delete ${filePath}?`)) {
+          output.textContent = 'Deletion cancelled';
+          return;
+        }
+
+        output.textContent = 'Deleting file...';
+
+        try {
+          const result = await invokeTool('deleteFile', { filePath });
+          output.textContent = result;
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+
+      // Move File
+      document.getElementById('move-file-btn').addEventListener('click', async () => {
+        const sourcePath = document.getElementById('move-source-path').value;
+        const destinationPath = document.getElementById('move-dest-path').value;
+        const output = document.getElementById('move-file-output');
+
+        output.textContent = 'Moving file...';
+
+        try {
+          const result = await invokeTool('moveFile', {
+            sourcePath,
+            destinationPath
+          });
+          output.textContent = result;
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+
+      // Create Directory
+      document.getElementById('create-dir-btn').addEventListener('click', async () => {
+        const dirPath = document.getElementById('create-dir-path').value;
+        const recursive = document.getElementById('create-dir-recursive').checked;
+        const output = document.getElementById('create-dir-output');
+
+        output.textContent = 'Creating directory...';
+
+        try {
+          const result = await invokeTool('createDirectory', {
+            dirPath,
+            recursive
+          });
+          output.textContent = result;
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+
+      // Move Directory
+      document.getElementById('move-dir-btn').addEventListener('click', async () => {
+        const sourcePath = document.getElementById('move-dir-source-path').value;
+        const destinationPath = document.getElementById('move-dir-dest-path').value;
+        const output = document.getElementById('move-dir-output');
+
+        output.textContent = 'Moving directory...';
+
+        try {
+          const result = await invokeTool('moveDirectory', {
+            sourcePath,
+            destinationPath
+          });
+          output.textContent = result;
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+
+      // Copy Directory
+      document.getElementById('copy-dir-btn').addEventListener('click', async () => {
+        const sourcePath = document.getElementById('copy-dir-source-path').value;
+        const destinationPath = document.getElementById('copy-dir-dest-path').value;
+        const overwrite = document.getElementById('copy-dir-overwrite').checked;
+        const errorOnExist = document.getElementById('copy-dir-error-on-exist').checked;
+        const output = document.getElementById('copy-dir-output');
+
+        output.textContent = 'Copying directory...';
+
+        try {
+          const result = await invokeTool('copyDirectory', {
+            sourcePath,
+            destinationPath,
+            overwrite,
+            errorOnExist
+          });
+          output.textContent = result;
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+
+      // Delete Directory
+      document.getElementById('delete-dir-btn').addEventListener('click', async () => {
+        const dirPath = document.getElementById('delete-dir-path').value;
+        const recursive = document.getElementById('delete-dir-recursive').checked;
+        const output = document.getElementById('delete-dir-output');
+
+        // Add confirmation to prevent accidental deletion
+        if (!confirm(`Are you sure you want to delete ${dirPath} and all its contents? This cannot be undone.`)) {
+          output.textContent = 'Deletion cancelled';
+          return;
+        }
+
+        output.textContent = 'Deleting directory...';
+
+        try {
+          const result = await invokeTool('deleteDirectory', {
+            dirPath,
+            recursive
+          });
+          output.textContent = result;
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+
+      // Get Directory Tree
+      document.getElementById('dir-tree-btn').addEventListener('click', async () => {
+        const dirPath = document.getElementById('dir-tree-path').value;
+        const maxDepthInput = document.getElementById('dir-tree-max-depth').value;
+        const maxDepth = maxDepthInput ? parseInt(maxDepthInput) : undefined;
+        const includeFiles = document.getElementById('dir-tree-include-files').checked;
+        const includeDirs = document.getElementById('dir-tree-include-dirs').checked;
+        const includeSize = document.getElementById('dir-tree-include-size').checked;
+        const extensionsInput = document.getElementById('dir-tree-extensions').value;
+        const extensions = extensionsInput ? extensionsInput.split(',').map(ext => ext.trim()) : undefined;
+        const excludeInput = document.getElementById('dir-tree-exclude').value;
+        const exclude = excludeInput ? excludeInput.split(',').map(path => path.trim()) : undefined;
+
+        const output = document.getElementById('dir-tree-output');
+
+        output.textContent = 'Getting directory tree...';
+
+        try {
+          const result = await invokeTool('getDirectoryTree', {
+            dirPath,
+            maxDepth,
+            includeFiles,
+            includeDirs,
+            includeSize,
+            extensions,
+            exclude
+          });
+
+          // Format the tree for display
+          try {
+            const tree = JSON.parse(result);
+            output.innerHTML = formatDirectoryTree(tree);
+          } catch (parseError) {
+            output.textContent = result;
+          }
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+
+      // Helper function to format the directory tree as HTML
+      function formatDirectoryTree(node, indent = 0) {
+        const indentStr = '&nbsp;'.repeat(indent * 4);
+        let html = '';
+
+        // Add the current node
+        const icon = node.type === 'directory' ? '📁' : '📄';
+        const size = node.size ? ` (${formatFileSize(node.size)})` : '';
+        html += `<div>${indentStr}${icon} ${node.name}${size}</div>`;
+
+        // Add children recursively
+        if (node.children && node.children.length > 0) {
+          for (const child of node.children) {
+            html += formatDirectoryTree(child, indent + 1);
+          }
+        }
+
+        return html;
+      }
+
+      // Helper function to format file size
+      function formatFileSize(size) {
+        if (size < 1024) {
+          return `${size} B`;
+        } else if (size < 1024 * 1024) {
+          return `${(size / 1024).toFixed(2)} KB`;
+        } else if (size < 1024 * 1024 * 1024) {
+          return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+        } else {
+          return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+        }
+      }
+
+      // Combination Task - Task Parameter Definitions
+      const taskParamDefinitions = {
+        readFile: [
+          { name: 'filePath', type: 'text', label: 'File Path', placeholder: 'path/to/file.txt', required: true },
+          { name: 'encoding', type: 'text', label: 'Encoding', placeholder: 'utf8 (optional)' },
+          { name: 'startLine', type: 'number', label: 'Start Line', placeholder: 'optional' },
+          { name: 'endLine', type: 'number', label: 'End Line', placeholder: 'optional' }
+        ],
+        createFile: [
+          { name: 'filePath', type: 'text', label: 'File Path', placeholder: 'path/to/file.txt', required: true },
+          { name: 'content', type: 'textarea', label: 'Content', placeholder: 'File content...', required: true },
+          { name: 'overwrite', type: 'checkbox', label: 'Overwrite if exists' }
+        ],
+        editFile: [
+          { name: 'filePath', type: 'text', label: 'File Path', placeholder: 'path/to/file.txt', required: true },
+          { name: 'operation', type: 'select', label: 'Operation', options: [
+            { value: 'replace', label: 'Replace' },
+            { value: 'append', label: 'Append' },
+            { value: 'prepend', label: 'Prepend' },
+            { value: 'insert', label: 'Insert' }
+          ], required: true },
+          { name: 'content', type: 'textarea', label: 'Content', placeholder: 'New content...', required: true },
+          { name: 'lineNumber', type: 'number', label: 'Line Number (for insert)', placeholder: 'optional' },
+          { name: 'startLine', type: 'number', label: 'Start Line (for replace)', placeholder: 'optional' },
+          { name: 'endLine', type: 'number', label: 'End Line (for replace)', placeholder: 'optional' }
+        ],
+        deleteFile: [
+          { name: 'filePath', type: 'text', label: 'File Path', placeholder: 'path/to/file.txt', required: true }
+        ],
+        moveFile: [
+          { name: 'sourcePath', type: 'text', label: 'Source Path', placeholder: 'path/to/source.txt', required: true },
+          { name: 'destinationPath', type: 'text', label: 'Destination Path', placeholder: 'path/to/destination.txt', required: true },
+          { name: 'overwrite', type: 'checkbox', label: 'Overwrite if exists' }
+        ],
+        copyFile: [
+          { name: 'sourcePath', type: 'text', label: 'Source Path', placeholder: 'path/to/source.txt', required: true },
+          { name: 'destinationPath', type: 'text', label: 'Destination Path', placeholder: 'path/to/destination.txt', required: true },
+          { name: 'overwrite', type: 'checkbox', label: 'Overwrite if exists' }
+        ],
+        readDirectory: [
+          { name: 'dirPath', type: 'text', label: 'Directory Path', placeholder: 'path/to/directory', required: true }
+        ],
+        createDirectory: [
+          { name: 'dirPath', type: 'text', label: 'Directory Path', placeholder: 'path/to/directory', required: true },
+          { name: 'recursive', type: 'checkbox', label: 'Create parent directories if needed', checked: true }
+        ],
+        moveDirectory: [
+          { name: 'sourcePath', type: 'text', label: 'Source Path', placeholder: 'path/to/source', required: true },
+          { name: 'destinationPath', type: 'text', label: 'Destination Path', placeholder: 'path/to/destination', required: true }
+        ],
+        copyDirectory: [
+          { name: 'sourcePath', type: 'text', label: 'Source Path', placeholder: 'path/to/source', required: true },
+          { name: 'destinationPath', type: 'text', label: 'Destination Path', placeholder: 'path/to/destination', required: true },
+          { name: 'overwrite', type: 'checkbox', label: 'Overwrite existing files' },
+          { name: 'errorOnExist', type: 'checkbox', label: 'Error if destination exists' }
+        ],
+        deleteDirectory: [
+          { name: 'dirPath', type: 'text', label: 'Directory Path', placeholder: 'path/to/directory', required: true },
+          { name: 'recursive', type: 'checkbox', label: 'Delete subdirectories and files', checked: true }
+        ],
+        getDirectoryTree: [
+          { name: 'dirPath', type: 'text', label: 'Directory Path', placeholder: 'path/to/directory', required: true },
+          { name: 'maxDepth', type: 'number', label: 'Max Depth', placeholder: 'optional' },
+          { name: 'includeFiles', type: 'checkbox', label: 'Include Files', checked: true },
+          { name: 'includeDirs', type: 'checkbox', label: 'Include Directories', checked: true },
+          { name: 'includeSize', type: 'checkbox', label: 'Include File Sizes' },
+          { name: 'exclude', type: 'text', label: 'Exclude Paths (comma-separated)', placeholder: 'node_modules,dist,.git' }
+        ]
+      };
+
+      // Task queue to store tasks
+      let taskQueue = [];
+
+      // Function to update the task queue display
+      function updateTaskQueueDisplay() {
+        const taskQueueElement = document.getElementById('combo-task-queue');
+        const tasksTextarea = document.getElementById('combo-tasks');
+
+        if (taskQueue.length === 0) {
+          taskQueueElement.innerHTML = '<div class="empty-queue">No tasks added yet</div>';
+          tasksTextarea.value = '';
+          return;
+        }
+
+        let html = '';
+        taskQueue.forEach((task, index) => {
+          html += `
+            <div class="task-item">
+              <div>
+                <div class="task-type">${index + 1}. ${task.type}</div>
+                <div class="task-params">${JSON.stringify(task.params)}</div>
+              </div>
+              <div class="remove-task" data-index="${index}">✕</div>
+            </div>
+          `;
+        });
+
+        taskQueueElement.innerHTML = html;
+
+        // Add event listeners to remove buttons
+        document.querySelectorAll('.remove-task').forEach(button => {
+          button.addEventListener('click', () => {
+            const index = parseInt(button.getAttribute('data-index'));
+            taskQueue.splice(index, 1);
+            updateTaskQueueDisplay();
+          });
+        });
+
+        // Update the JSON textarea
+        tasksTextarea.value = JSON.stringify(taskQueue, null, 2);
+      }
+
+      // Function to generate parameter fields based on task type
+      function generateParamFields(taskType) {
+        const container = document.getElementById('combo-params-container');
+        container.innerHTML = '';
+
+        if (!taskType || !taskParamDefinitions[taskType]) {
+          return;
+        }
+
+        const params = taskParamDefinitions[taskType];
+
+        params.forEach(param => {
+          const formGroup = document.createElement('div');
+          formGroup.className = 'form-group';
+
+          const label = document.createElement('label');
+          label.setAttribute('for', `combo-param-${param.name}`);
+          label.textContent = param.label + (param.required ? ' *' : '');
+          formGroup.appendChild(label);
+
+          let input;
+
+          switch (param.type) {
+            case 'textarea':
+              input = document.createElement('textarea');
+              input.rows = 3;
+              break;
+
+            case 'select':
+              input = document.createElement('select');
+              if (param.options) {
+                param.options.forEach(option => {
+                  const optionElement = document.createElement('option');
+                  optionElement.value = option.value;
+                  optionElement.textContent = option.label;
+                  input.appendChild(optionElement);
+                });
+              }
+              break;
+
+            case 'checkbox':
+              input = document.createElement('input');
+              input.type = 'checkbox';
+              if (param.checked) {
+                input.checked = true;
+              }
+              break;
+
+            default:
+              input = document.createElement('input');
+              input.type = param.type || 'text';
+          }
+
+          input.id = `combo-param-${param.name}`;
+          input.name = param.name;
+
+          if (param.placeholder) {
+            input.placeholder = param.placeholder;
+          }
+
+          formGroup.appendChild(input);
+          container.appendChild(formGroup);
+        });
+      }
+
+      // Task type dropdown change event
+      document.getElementById('combo-task-type').addEventListener('change', function() {
+        generateParamFields(this.value);
+      });
+
+      // Add task button click event
+      document.getElementById('combo-add-task-btn').addEventListener('click', () => {
+        const taskType = document.getElementById('combo-task-type').value;
+
+        if (!taskType) {
+          alert('Please select a task type');
+          return;
+        }
+
+        const params = {};
+        let missingRequired = false;
+
+        // Collect parameter values
+        taskParamDefinitions[taskType].forEach(param => {
+          const element = document.getElementById(`combo-param-${param.name}`);
+
+          if (!element) return;
+
+          let value;
+
+          if (param.type === 'checkbox') {
+            value = element.checked;
+          } else if (param.type === 'number' && element.value) {
+            value = Number(element.value);
+          } else if (param.name === 'exclude' && element.value) {
+            // Handle comma-separated exclude paths
+            value = element.value.split(',').map(p => p.trim()).filter(p => p);
+          } else {
+            value = element.value;
+          }
+
+          // Check required fields
+          if (param.required && (value === '' || value === undefined)) {
+            alert(`${param.label} is required`);
+            element.focus();
+            missingRequired = true;
+            return;
+          }
+
+          // Only add non-empty values
+          if (value !== '' && value !== undefined) {
+            params[param.name] = value;
+          }
+        });
+
+        if (missingRequired) {
+          return;
+        }
+
+        // Add task to queue
+        taskQueue.push({
+          type: taskType,
+          params: params
+        });
+
+        // Update display
+        updateTaskQueueDisplay();
+
+        // Reset task type dropdown
+        document.getElementById('combo-task-type').value = '';
+        document.getElementById('combo-params-container').innerHTML = '';
+      });
+
+      // Clear button click event
+      document.getElementById('combo-clear-btn').addEventListener('click', () => {
+        if (confirm('Are you sure you want to clear all tasks?')) {
+          taskQueue = [];
+          updateTaskQueueDisplay();
+        }
+      });
+
+      // Manual JSON edit event
+      document.getElementById('combo-tasks').addEventListener('change', function() {
+        try {
+          const newTasks = JSON.parse(this.value);
+          if (Array.isArray(newTasks)) {
+            taskQueue = newTasks;
+            updateTaskQueueDisplay();
+          }
+        } catch (error) {
+          // Invalid JSON, don't update the queue
+          console.error('Invalid JSON:', error);
+        }
+      });
+
+      // Run tasks button click event
+      document.getElementById('combo-btn').addEventListener('click', async () => {
+        const workingDir = document.getElementById('combo-working-dir').value;
+        const stopOnError = document.getElementById('combo-stop-on-error').checked;
+        const output = document.getElementById('combo-output');
+
+        if (!workingDir) {
+          alert('Please specify a working directory');
+          document.getElementById('combo-working-dir').focus();
+          return;
+        }
+
+        if (taskQueue.length === 0) {
+          alert('Please add at least one task');
+          return;
+        }
+
+        output.textContent = 'Running tasks...';
+
+        try {
+          const result = await invokeTool('combinationTask', {
+            workingDir,
+            tasks: taskQueue,
+            stopOnError
+          });
+
+          // Format the result for better readability
+          try {
+            const parsedResults = JSON.parse(result);
+            let formattedOutput = '';
+
+            parsedResults.forEach((taskResult, index) => {
+              formattedOutput += `Task ${index + 1} (${taskResult.taskType}): ${taskResult.success ? '✅ Success' : '❌ Failed'}\n`;
+              if (taskResult.success) {
+                formattedOutput += `Result: ${taskResult.result}\n\n`;
+              } else {
+                formattedOutput += `Error: ${taskResult.error}\n\n`;
+              }
+            });
+
+            output.innerHTML = `<pre>${formattedOutput}</pre>`;
+          } catch (parseError) {
+            output.textContent = result;
+          }
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
     });
-    
+
     // Poll the server for the latest command result
     async function pollForResult(outputElement, attempts = 0) {
       if (attempts > 5) {
@@ -622,12 +1530,12 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
         }
         return;
       }
-      
+
       try {
         // Get the info endpoint to check for active sessions
         const response = await fetch('/info');
         const info = await response.json();
-        
+
         if (info.activeSessions > 0) {
           // Server still active, get the most recent message from cache
           for (const [key, value] of responseCache.entries()) {
@@ -641,19 +1549,19 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
       } catch (e) {
         console.error('Error polling for result:', e);
       }
-      
+
       // Try again after a delay
       setTimeout(() => pollForResult(outputElement, attempts + 1), 1000);
     }
-    
+
     // Helper function to extract result text (duplicate for global scope access)
     function extractResultText(responseData) {
       if (!responseData || !responseData.content) {
         return 'No result';
       }
-      
+
       const content = responseData.content;
-      
+
       if (content.content && Array.isArray(content.content) && content.content.length > 0) {
         return content.content[0].text || 'No text in result';
       } else if (Array.isArray(content) && content.length > 0) {
@@ -666,4 +1574,4 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
     }
   </script>
 </body>
-</html> 
+</html>
