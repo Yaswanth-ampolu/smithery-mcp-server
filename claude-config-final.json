@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "system-tools": {
-      "baseUrl": "http://172.16.16.54:8080/"
-    }
-  }
-} 
