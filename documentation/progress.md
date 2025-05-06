@@ -616,6 +616,70 @@ Key implementation features:
 
 This implementation ensures that as new tools are added to the MCP server, they will automatically be included in the `/tools` endpoint response without requiring additional documentation updates.
 
+## Configuration System Implementation
+
+### Overview
+We have implemented a configuration system for the MCP server that:
+1. Stores server configuration in a `mcp-config.json` file
+2. Handles automatic port selection when the default port is in use
+3. Persists configuration between server restarts
+
+### Implementation Details
+
+#### 1. Configuration Module
+We created a new file `src/config.ts` that provides:
+- A TypeScript interface `McpConfig` defining the configuration structure
+- Functions for loading, saving, and updating configuration
+- Utility functions for checking port availability and finding available ports
+- Default configuration values
+
+#### 2. Port Selection Logic
+We updated the server startup logic in `main.ts` to:
+- Check if the configured port is available
+- Automatically find the next available port if needed
+- Update the configuration file with the selected port
+- Provide clear logging about port selection
+
+#### 3. Server Initialization
+We modified the server initialization to:
+- Load configuration on startup
+- Override configuration with environment variables if provided
+- Log the configured and actual port being used
+- Save the configuration when the port changes
+
+#### 4. Control Scripts
+We updated the control scripts to:
+- Read port information from the configuration file
+- Show the configured port in the status command
+- Display the configuration file contents when checking status
+
+### Configuration Options
+The configuration file includes:
+- `port`: The port on which the server listens
+- `host`: The host address to bind to
+- `serverName`: The name of the server
+- `serverVersion`: The version of the server
+- `workspace`: The path to the workspace directory
+- `logLevel`: The logging level
+
+### Documentation
+We created a comprehensive documentation file `documentation/CONFIGURATION.md` that explains:
+- The configuration file structure
+- Available configuration options
+- Automatic port selection behavior
+- Environment variables for overriding configuration
+- Command line options
+- How to check and manually edit the configuration
+- Configuration precedence
+- Troubleshooting tips
+
+### Benefits
+- Improved user experience with automatic port selection
+- Persistent configuration between server restarts
+- Support for multiple MCP server instances on the same machine
+- Better visibility into server configuration
+- Comprehensive documentation for users
+
 ## Next Steps
 
 1. Begin with high-priority tools in Phase 1

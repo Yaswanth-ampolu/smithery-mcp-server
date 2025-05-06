@@ -21,7 +21,7 @@ PORT=8080
 # Function to check dependencies
 check_dependencies() {
   echo -e "${YELLOW}Checking dependencies...${NC}"
-  
+
   # Check for Node.js
   if ! command -v node &> /dev/null; then
     echo -e "${RED}Error: Node.js is not installed!${NC}"
@@ -29,7 +29,7 @@ check_dependencies() {
     echo "Visit: https://nodejs.org/en/download/"
     exit 1
   fi
-  
+
   # Check node version (need 14+)
   NODE_VERSION=$(node -v | cut -d 'v' -f 2)
   NODE_MAJOR=$(echo $NODE_VERSION | cut -d '.' -f 1)
@@ -39,21 +39,21 @@ check_dependencies() {
     echo "Please upgrade Node.js before continuing."
     exit 1
   fi
-  
+
   # Check for curl
   if ! command -v curl &> /dev/null; then
     echo -e "${RED}Error: curl is not installed!${NC}"
     echo "Please install curl before continuing."
     exit 1
   fi
-  
+
   # Check for tar
   if ! command -v tar &> /dev/null; then
     echo -e "${RED}Error: tar is not installed!${NC}"
     echo "Please install tar before continuing."
     exit 1
   fi
-  
+
   echo -e "${GREEN}All dependencies are satisfied!${NC}"
 }
 
@@ -61,11 +61,11 @@ check_dependencies() {
 setup_path() {
   # Detect shell
   SHELL_NAME=$(basename "$SHELL")
-  
+
   # Check if ~/bin is already in PATH
   if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     echo -e "${YELLOW}Adding ~/bin to PATH in your shell profile...${NC}"
-    
+
     # Check which shell config file to use
     if [ "$SHELL_NAME" = "bash" ]; then
       if [ -f "$HOME/.bashrc" ]; then
@@ -84,7 +84,7 @@ setup_path() {
       SHELL_CONFIG="$HOME/.profile"
       touch "$SHELL_CONFIG" 2>/dev/null || true
     fi
-    
+
     # Add PATH to shell config
     echo 'export PATH="$HOME/bin:$PATH"' >> "$SHELL_CONFIG"
     echo -e "${GREEN}Added ~/bin to PATH in ${SHELL_CONFIG}${NC}"
@@ -117,17 +117,17 @@ create_html_file() {
   <div class="container">
     <h1>MCP Terminal Server</h1>
     <p>This server provides terminal access and system tools via the Model Context Protocol (MCP).</p>
-    
+
     <div class="tools">
       <h2>Available Tools:</h2>
-      
+
       <div class="tool">
         <h3>Run Shell Command</h3>
         <p>Execute a shell command on the server.</p>
         <input type="text" id="commandInput" placeholder="Enter command (e.g., ls -la)" style="width:60%; padding:5px;">
         <button onclick="runCommand()">Execute</button>
       </div>
-      
+
       <div class="tool">
         <h3>List Directory</h3>
         <p>List files in a directory.</p>
@@ -135,7 +135,7 @@ create_html_file() {
         <button onclick="listDirectory()">List</button>
       </div>
     </div>
-    
+
     <h2>Output:</h2>
     <pre id="output">Results will appear here...</pre>
   </div>
@@ -144,7 +144,7 @@ create_html_file() {
     function runCommand() {
       const command = document.getElementById('commandInput').value;
       if (!command) return;
-      
+
       fetch('/messages', {
         method: 'POST',
         headers: {
@@ -173,10 +173,10 @@ create_html_file() {
         document.getElementById('output').textContent = 'Error: ' + error.message;
       });
     }
-    
+
     function listDirectory() {
       const dirPath = document.getElementById('dirInput').value;
-      
+
       fetch('/messages', {
         method: 'POST',
         headers: {
@@ -205,7 +205,7 @@ create_html_file() {
         document.getElementById('output').textContent = 'Error: ' + error.message;
       });
     }
-    
+
     // Connect to SSE endpoint
     const eventSource = new EventSource('/sse');
     eventSource.onmessage = function(event) {
@@ -261,17 +261,17 @@ start_server() {
     echo -e "${YELLOW}MCP Terminal Server is already running! (PID: $(cat "$PID_FILE"))${NC}"
     return 1
   fi
-  
+
   echo -e "${GREEN}Starting MCP Terminal Server on port $PORT...${NC}"
   cd "$INSTALL_DIR" || { echo -e "${RED}Failed to change to installation directory!${NC}"; exit 1; }
-  
+
   # Check if dist/main.js exists
   if [ ! -f "dist/main.js" ]; then
     echo -e "${RED}Error: dist/main.js not found in installation directory!${NC}"
     echo "The installation may be corrupted. Try reinstalling the MCP Terminal Server."
     exit 1
   fi
-  
+
   # Create public directory and index.html if they don't exist
   if [ ! -d "public" ]; then
     mkdir -p public
@@ -280,11 +280,24 @@ start_server() {
   if [ ! -f "public/index.html" ]; then
     create_html_file "public/index.html"
   fi
-  
+
   # Start the server with the specified port
-  PORT=$PORT nohup node dist/main.js > "$LOG_FILE" 2>&1 &
+  # If a port was specified, pass it as an environment variable
+  if [ "$PORT" != "8080" ]; then
+    PORT=$PORT nohup node dist/main.js > "$LOG_FILE" 2>&1 &
+  else
+    # Otherwise, use the port from the config file if it exists
+    if [ -f "$INSTALL_DIR/mcp-config.json" ]; then
+      CONFIG_PORT=$(grep -o '"port":[0-9]*' "$INSTALL_DIR/mcp-config.json" | cut -d':' -f2)
+      if [ ! -z "$CONFIG_PORT" ]; then
+        echo "Using port $CONFIG_PORT from configuration file"
+        PORT=$CONFIG_PORT
+      fi
+    fi
+    nohup node dist/main.js > "$LOG_FILE" 2>&1 &
+  fi
   echo $! > "$PID_FILE"
-  
+
   # Check if the server started successfully
   sleep 2
   if ps -p $(cat "$PID_FILE" 2>/dev/null) > /dev/null 2>&1; then
@@ -304,18 +317,18 @@ stop_server() {
     echo -e "${YELLOW}No PID file found. Server may not be running.${NC}"
     return 1
   fi
-  
+
   PID=$(cat "$PID_FILE" 2>/dev/null)
   if [ -z "$PID" ]; then
     echo -e "${RED}Invalid PID file. Cleaning up...${NC}"
     rm -f "$PID_FILE"
     return 1
   fi
-  
+
   if ps -p $PID > /dev/null 2>&1; then
     echo -e "${YELLOW}Stopping MCP Terminal Server (PID: $PID)...${NC}"
     kill $PID
-    
+
     # Wait for the server to shut down
     for i in {1..5}; do
       if ! ps -p $PID > /dev/null 2>&1; then
@@ -323,13 +336,13 @@ stop_server() {
       fi
       sleep 1
     done
-    
+
     # Force kill if still running
     if ps -p $PID > /dev/null 2>&1; then
       echo -e "${YELLOW}Server not responding. Forcing shutdown...${NC}"
       kill -9 $PID
     fi
-    
+
     rm -f "$PID_FILE"
     echo -e "${GREEN}Server stopped${NC}"
   else
@@ -342,15 +355,31 @@ status_server() {
   if [ -f "$PID_FILE" ] && ps -p $(cat "$PID_FILE" 2>/dev/null) > /dev/null 2>&1; then
     echo -e "${GREEN}MCP Terminal Server is running (PID: $(cat "$PID_FILE"))${NC}"
     echo "Log file: $LOG_FILE"
-    
+
     # Try to determine the actual port used by the server
-    SERVER_PORT=$(grep -o "Listening on port [0-9]*" "$LOG_FILE" | tail -1 | awk '{print $4}')
+    SERVER_PORT=$(grep -o "MCP Server listening on [0-9.]*:[0-9]*" "$LOG_FILE" | tail -1 | awk -F':' '{print $2}')
+
+    # If we couldn't find it in the log, check the config file
+    if [ -z "$SERVER_PORT" ]; then
+      if [ -f "$INSTALL_DIR/mcp-config.json" ]; then
+        SERVER_PORT=$(grep -o '"port":[0-9]*' "$INSTALL_DIR/mcp-config.json" | cut -d':' -f2)
+      fi
+    fi
+
+    # If we still don't have a port, use the default
     if [ -z "$SERVER_PORT" ]; then
       SERVER_PORT=$PORT
     fi
-    
+
     echo -e "Access URL: ${GREEN}http://localhost:$SERVER_PORT${NC}"
-    
+
+    # Show configuration file if it exists
+    if [ -f "$INSTALL_DIR/mcp-config.json" ]; then
+      echo -e "Configuration file: $INSTALL_DIR/mcp-config.json"
+      echo -e "Configuration contents:"
+      cat "$INSTALL_DIR/mcp-config.json"
+    fi
+
     # Show memory usage
     MEM_USAGE=$(ps -o rss= -p $(cat "$PID_FILE"))
     if [ ! -z "$MEM_USAGE" ]; then
@@ -362,29 +391,36 @@ status_server() {
       echo "Removing stale PID file..."
       rm -f "$PID_FILE"
     fi
+
+    # Show configuration file if it exists
+    if [ -f "$INSTALL_DIR/mcp-config.json" ]; then
+      echo -e "Configuration file exists: $INSTALL_DIR/mcp-config.json"
+      echo -e "Configuration contents:"
+      cat "$INSTALL_DIR/mcp-config.json"
+    fi
   fi
 }
 
 uninstall_server() {
   echo -e "${YELLOW}Uninstalling MCP Terminal Server...${NC}"
-  
+
   # Stop the server if it's running
   if [ -f "$PID_FILE" ]; then
     stop_server
   fi
-  
+
   # Remove the command script
   if [ -f "$BIN_DIR/mcp-terminal" ]; then
     rm -f "$BIN_DIR/mcp-terminal"
     echo "Removed command script"
   fi
-  
+
   # Remove the installation directory
   if [ -d "$INSTALL_DIR" ]; then
     rm -rf "$INSTALL_DIR"
     echo "Removed installation directory"
   fi
-  
+
   echo -e "${GREEN}MCP Terminal Server has been uninstalled!${NC}"
   echo "Note: The PATH modification in your shell configuration remains."
 }
@@ -436,11 +472,11 @@ SCRIPTEOF
 install_mcp() {
   echo -e "${YELLOW}=== MCP Terminal Server Installation ===${NC}"
   echo "This script will install the MCP Terminal Server locally without root access"
-  
+
   # Create directories
   mkdir -p "$INSTALL_DIR" || { echo -e "${RED}Failed to create installation directory!${NC}"; exit 1; }
   mkdir -p "$BIN_DIR" || { echo -e "${RED}Failed to create bin directory!${NC}"; exit 1; }
-  
+
   # Download and extract
   echo -e "${YELLOW}Downloading MCP Terminal Server...${NC}"
   if ! curl -L "$DOWNLOAD_URL" -o /tmp/mcp-terminal.tar.gz; then
@@ -448,7 +484,7 @@ install_mcp() {
     echo "URL: $DOWNLOAD_URL"
     exit 1
   fi
-  
+
   # Verify the downloaded file is not empty and is a valid tar.gz
   if [ ! -s /tmp/mcp-terminal.tar.gz ]; then
     echo -e "${RED}Downloaded file is empty! Release may not exist.${NC}"
@@ -456,7 +492,7 @@ install_mcp() {
     echo "Please verify the GitHub release exists and contains the file."
     exit 1
   fi
-  
+
   # Check if this is a valid tar.gz file
   if ! file /tmp/mcp-terminal.tar.gz | grep -q "gzip compressed data"; then
     echo -e "${RED}Invalid tar.gz file downloaded!${NC}"
@@ -464,21 +500,21 @@ install_mcp() {
     echo "Content downloaded is not a valid gzip file. Verify your GitHub release."
     exit 1
   fi
-  
+
   echo -e "${YELLOW}Extracting files...${NC}"
   if ! tar xzf /tmp/mcp-terminal.tar.gz -C "$INSTALL_DIR"; then
     echo -e "${RED}Extraction failed!${NC}"
     rm -f /tmp/mcp-terminal.tar.gz
     exit 1
   fi
-  
+
   # Clean up
   rm -f /tmp/mcp-terminal.tar.gz
-  
+
   # Create the mcp-terminal command script
   echo -e "${YELLOW}Creating mcp-terminal command...${NC}"
   create_control_script "$BIN_DIR/mcp-terminal"
-  
+
   # Make it executable
   if [ ! -x "$BIN_DIR/mcp-terminal" ]; then
     echo -e "${RED}Failed to make mcp-terminal executable!${NC}"
@@ -518,7 +554,7 @@ install_mcp() {
 # Function to uninstall the MCP Terminal Server
 uninstall_mcp() {
   echo -e "${YELLOW}Uninstalling MCP Terminal Server...${NC}"
-  
+
   # Stop the server if it's running
   if [ -f "$INSTALL_DIR/mcp.pid" ]; then
     if [ -x "$BIN_DIR/mcp-terminal" ]; then
@@ -535,19 +571,19 @@ uninstall_mcp() {
       rm -f "$INSTALL_DIR/mcp.pid"
     fi
   fi
-  
+
   # Remove the command script
   if [ -f "$BIN_DIR/mcp-terminal" ]; then
     rm -f "$BIN_DIR/mcp-terminal"
     echo "Removed command script"
   fi
-  
+
   # Remove the installation directory
   if [ -d "$INSTALL_DIR" ]; then
     rm -rf "$INSTALL_DIR"
     echo "Removed installation directory"
   fi
-  
+
   echo -e "${GREEN}MCP Terminal Server has been uninstalled!${NC}"
   echo "Note: The PATH modification in your shell configuration remains."
 }

@@ -30,42 +30,65 @@ Before creating a release, ensure you have:
    ```bash
    # Copy compiled JavaScript
    cp -r dist/* build/dist/
-   
+
    # Copy package.json and other necessary files
    cp package.json build/
-   
+
    # Copy public folder (for web interface)
    cp -r public build/
-   
+
    # Copy any necessary static files
    cp -r static build/ 2>/dev/null || true
-   
+
    # Add a README if desired
    cp README.md build/ 2>/dev/null || true
    ```
 
-5. **Create the tar.gz file**
+5. **Install dependencies in the build directory**
+   ```bash
+   # Navigate to the build directory
+   cd build
+
+   # Install only production dependencies (excludes dev dependencies)
+   npm install --production
+
+   # Return to the project root
+   cd ..
+   ```
+
+   This step is crucial as it ensures all required dependencies (including @modelcontextprotocol/sdk)
+   are included in the release package. Without this step, the server will fail to start with
+   "Cannot find package '@modelcontextprotocol/sdk'" errors.
+
+6. **Create the tar.gz file**
    ```bash
    cd build
    tar -czf ../mcp-terminal.tar.gz .
    cd ..
    ```
-   
+
    The important part is to create the archive from inside the build directory so that files are at the root of the archive.
 
-6. **Verify the archive contents**
+7. **Verify the archive contents**
    ```bash
    mkdir -p verify-tmp
    tar -xzf mcp-terminal.tar.gz -C verify-tmp
    ls -la verify-tmp
-   
+
    # Check if dist/main.js exists (required by the installer)
    if [ -f verify-tmp/dist/main.js ]; then
      echo "✅ Archive looks good! dist/main.js exists."
    else
      echo "❌ Archive is missing dist/main.js - this will cause installation to fail!"
    fi
-   
+
+   # Check if node_modules/@modelcontextprotocol/sdk exists (required dependency)
+   if [ -d verify-tmp/node_modules/@modelcontextprotocol/sdk ]; then
+     echo "✅ Dependencies look good! @modelcontextprotocol/sdk is present."
+   else
+     echo "❌ Archive is missing @modelcontextprotocol/sdk - this will cause the server to fail!"
+   fi
+
    # Clean up
    rm -rf verify-tmp
    ```
@@ -108,11 +131,16 @@ mcp-terminal start
    - The tar.gz file structure is incorrect
    - Make sure dist/main.js is at the root of the archive
 
-2. **"gzip: stdin: not in gzip format"**
+2. **"Cannot find package '@modelcontextprotocol/sdk'"**
+   - The dependencies were not installed in the build directory
+   - Make sure to run `npm install --production` in the build directory before creating the tar.gz
+   - Alternatively, manually install the missing package: `npm install @modelcontextprotocol/sdk`
+
+3. **"gzip: stdin: not in gzip format"**
    - The tar.gz file is not properly compressed
    - Recreate it using the commands above
 
-3. **"Downloaded file is empty!"**
+4. **"Downloaded file is empty!"**
    - The GitHub release asset doesn't exist or has the wrong name
    - Make sure the file is named exactly "mcp-terminal.tar.gz"
 
@@ -130,11 +158,16 @@ You should see something like:
 ./dist/
 ./dist/main.js
 ./dist/[other files...]
+./node_modules/
+./node_modules/@modelcontextprotocol/
+./node_modules/@modelcontextprotocol/sdk/
 ./package.json
 ./public/
 ./public/index.html
 [etc...]
 ```
+
+The presence of the `node_modules` directory with the required dependencies is essential for the server to function properly.
 
 ## Cleaning Up
 
@@ -144,4 +177,4 @@ After a successful release:
 # Remove temporary files
 rm -rf build
 rm mcp-terminal.tar.gz
-``` 
+```
