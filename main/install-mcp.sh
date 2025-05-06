@@ -256,11 +256,24 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
+# Function to check and fix configuration file location
+check_config_file() {
+  # Check if config file exists in home directory but not in installation directory
+  if [ -f "$HOME/mcp-config.json" ] && [ ! -f "$INSTALL_DIR/mcp-config.json" ]; then
+    echo -e "${YELLOW}Found configuration file in home directory. Moving to installation directory...${NC}"
+    mv "$HOME/mcp-config.json" "$INSTALL_DIR/mcp-config.json"
+    echo -e "${GREEN}Configuration file moved to $INSTALL_DIR/mcp-config.json${NC}"
+  fi
+}
+
 start_server() {
   if [ -f "$PID_FILE" ] && ps -p $(cat "$PID_FILE" 2>/dev/null) > /dev/null 2>&1; then
     echo -e "${YELLOW}MCP Terminal Server is already running! (PID: $(cat "$PID_FILE"))${NC}"
     return 1
   fi
+
+  # Check and fix configuration file location
+  check_config_file
 
   echo -e "${GREEN}Starting MCP Terminal Server on port $PORT...${NC}"
   cd "$INSTALL_DIR" || { echo -e "${RED}Failed to change to installation directory!${NC}"; exit 1; }
@@ -284,7 +297,8 @@ start_server() {
   # Start the server with the specified port
   # If a port was specified, pass it as an environment variable
   if [ "$PORT" != "8080" ]; then
-    PORT=$PORT nohup node dist/main.js > "$LOG_FILE" 2>&1 &
+    # Set MCP_INSTALL_DIR to ensure config file is created in the correct location
+    MCP_INSTALL_DIR="$INSTALL_DIR" PORT=$PORT nohup node dist/main.js > "$LOG_FILE" 2>&1 &
   else
     # Otherwise, use the port from the config file if it exists
     if [ -f "$INSTALL_DIR/mcp-config.json" ]; then
@@ -294,7 +308,8 @@ start_server() {
         PORT=$CONFIG_PORT
       fi
     fi
-    nohup node dist/main.js > "$LOG_FILE" 2>&1 &
+    # Set MCP_INSTALL_DIR to ensure config file is created in the correct location
+    MCP_INSTALL_DIR="$INSTALL_DIR" nohup node dist/main.js > "$LOG_FILE" 2>&1 &
   fi
   echo $! > "$PID_FILE"
 
@@ -352,6 +367,9 @@ stop_server() {
 }
 
 status_server() {
+  # Check and fix configuration file location
+  check_config_file
+
   if [ -f "$PID_FILE" ] && ps -p $(cat "$PID_FILE" 2>/dev/null) > /dev/null 2>&1; then
     echo -e "${GREEN}MCP Terminal Server is running (PID: $(cat "$PID_FILE"))${NC}"
     echo "Log file: $LOG_FILE"

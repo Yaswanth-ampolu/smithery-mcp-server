@@ -106,7 +106,12 @@ If you encounter issues with the configuration system, try the following:
 
 ### Configuration File in Wrong Location
 
-If you find that the `mcp-config.json` file has been created in your home directory instead of in the MCP Terminal installation directory:
+If you find that the `mcp-config.json` file has been created in your home directory instead of in the MCP Terminal installation directory, the server will automatically detect and fix this issue when you:
+
+1. Run `mcp-terminal start` - The server will detect the misplaced configuration file and move it
+2. Run `mcp-terminal status` - The status command will also check and fix the configuration file location
+
+If for some reason the automatic fix doesn't work, you can manually move the file:
 
 1. Stop the MCP server if it's running: `mcp-terminal stop`
 2. Move the configuration file to the correct location:
@@ -115,4 +120,4 @@ If you find that the `mcp-config.json` file has been created in your home direct
    ```
 3. Restart the server: `mcp-terminal start`
 
-This issue has been fixed in recent versions, but if you upgraded from an older version, you might need to move the file manually.
+This issue has been fixed in recent versions, and the server now includes automatic detection and correction.
