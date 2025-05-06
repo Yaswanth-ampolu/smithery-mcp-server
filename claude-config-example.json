@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "yaswanth-tools": {
-      "url": "http://172.16.16.54:8080/sse",
-      "command": "yaswanth-tools"
-    }
-  }
-} 

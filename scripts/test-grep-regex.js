@@ -1,4 +1,4 @@
-import { grepFiles } from './dist/system.js';
+import { grepFiles } from '../dist/system.js';
 
 async function test() {
   try {

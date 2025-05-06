@@ -531,6 +531,91 @@ After reviewing the codebase and the proposed tools, we've determined that all t
    - Implement responsive UI for tool results
    - Add error handling and user feedback
 
+## AI Integration Enhancements
+
+### Tools Discovery Endpoint
+
+To improve AI client integration with the MCP server, we're implementing a dedicated endpoint that provides comprehensive information about available tools. This will help AI models understand and use the tools more effectively.
+
+#### Implementation Plan
+
+1. ✅ **Create `/tools` Endpoint**
+   - Status: Implemented
+   - Location: main.ts
+   - Functionality: Provides detailed information about all available tools
+   - Implementation: Extracts tool metadata from the MCP server instance
+   - Benefits:
+     - Enables AI clients to discover available tools
+     - Provides parameter information and descriptions
+     - Helps AI models understand tool capabilities
+     - Improves context retention for AI assistants
+   - Notes:
+     - Accesses the MCP server's internal tools map
+     - Converts Zod schemas to readable parameter descriptions
+     - Includes automatically generated usage examples
+     - Returns JSON with count and array of tool information
+
+2. ✅ **Tool Information Format**
+   - Status: Implemented
+   - Each tool includes:
+     - Name: The tool's identifier
+     - Description: Human-readable description of the tool's purpose
+     - Parameters: Complete parameter schema with types and descriptions
+     - Examples: Auto-generated usage examples to guide AI clients
+   - Format is JSON for easy parsing
+   - Example response structure:
+     ```json
+     {
+       "count": 16,
+       "tools": [
+         {
+           "name": "runShellCommand",
+           "description": "Run a terminal command in the system shell",
+           "parameters": {
+             "command": {
+               "type": "string",
+               "description": "The shell command to execute",
+               "required": true
+             }
+           },
+           "examples": ["runShellCommand({ \"command\": \"ls -la\" })"]
+         },
+         // Additional tools...
+       ]
+     }
+     ```
+
+3. ✅ **Integration with AI Clients**
+   - Status: Implemented
+   - AI clients can query the `/tools` endpoint to:
+     - Discover available tools
+     - Understand parameter requirements
+     - Learn how to use each tool effectively
+     - Retain context about tool capabilities between sessions
+   - Usage example:
+     ```
+     curl http://localhost:8080/tools
+     ```
+   - Integration instructions for AI clients:
+     1. Query the `/tools` endpoint to get available tools
+     2. Parse the JSON response to understand tool capabilities
+     3. Use the examples as templates for tool invocation
+     4. Include parameter descriptions in prompts to guide users
+
+#### Implementation Details
+
+The `/tools` endpoint extracts tool information directly from the MCP server instance, ensuring that the documentation is always in sync with the actual implementation. This approach avoids duplication and ensures that AI clients always have access to the most up-to-date information.
+
+Key implementation features:
+1. **Direct Access to MCP Server Tools**: Accesses the internal tools map of the MCP server
+2. **Zod Schema Conversion**: Transforms Zod validation schemas into readable parameter descriptions
+3. **Automatic Example Generation**: Creates usage examples based on parameter names and types
+4. **Comprehensive Tool Metadata**: Includes name, description, parameters, and examples for each tool
+5. **Error Handling**: Provides clear error messages if tool information cannot be accessed
+6. **JSON Response Format**: Returns data in a structured JSON format for easy parsing by clients
+
+This implementation ensures that as new tools are added to the MCP server, they will automatically be included in the `/tools` endpoint response without requiring additional documentation updates.
+
 ## Next Steps
 
 1. Begin with high-priority tools in Phase 1
@@ -540,3 +625,4 @@ After reviewing the codebase and the proposed tools, we've determined that all t
 5. Implement error handling
 6. Add validation and security checks
 7. Update frontend to support new tools
+8. Implement the tools discovery endpoint for AI integration

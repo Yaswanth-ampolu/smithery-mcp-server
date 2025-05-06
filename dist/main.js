@@ -7,6 +7,7 @@ import http from "http";
 import os from "os";
 import { runShellCommand, runPythonFile, readDirectory, copyFile, createFile, readFile, editFile, deleteFile, moveFile, createDirectory, moveDirectory, copyDirectory, deleteDirectory, getDirectoryTree, combinationTask, grepFiles } from "./system.js";
 import { getDefaultWorkspace, ensureWorkspaceExists } from "./platform-paths.js";
+import { createToolsRouter } from "./tools-endpoint.js";
 // Load environment variables
 dotenv.config();
 // Get server configuration from environment variables
@@ -471,6 +472,8 @@ const httpServer = http.createServer(app);
 // Apply middleware
 app.use(cors());
 app.use(express.json());
+// Add tools router
+app.use('/tools', createToolsRouter(server));
 const sessions = new Map();
 // SSE endpoint
 app.get('/sse', (req, res) => {
@@ -909,9 +912,9 @@ app.post('/messages', async (req, res) => {
         return;
     }
 });
-// Server info endpoint
+// Server info endpoint with optional tools information
 app.get('/info', (req, res) => {
-    res.status(200).json({
+    const baseInfo = {
         name: SERVER_NAME,
         version: SERVER_VERSION,
         activeSessions: sessions.size,
@@ -919,7 +922,8 @@ app.get('/info', (req, res) => {
         arch: os.arch(),
         node: process.version,
         workspace: DEFAULT_WORKSPACE
-    });
+    };
+    res.status(200).json(baseInfo);
 });
 // Serve static files
 app.use(express.static('public'));

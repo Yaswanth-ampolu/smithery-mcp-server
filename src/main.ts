@@ -26,6 +26,7 @@ import {
 } from "./system.js";
 import type { DirectoryTreeNode, CombinationTask, CombinationTaskResult, GrepMatch } from "./system.js";
 import { getDefaultWorkspace, ensureWorkspaceExists } from "./platform-paths.js";
+import { createToolsRouter } from "./tools-endpoint.js";
 
 // Load environment variables
 dotenv.config();
@@ -592,6 +593,9 @@ const httpServer = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 
+// Add tools router
+app.use('/tools', createToolsRouter(server));
+
 // Define a message queue for each client session
 interface ClientSession {
   res: Response;
@@ -1072,9 +1076,9 @@ app.post('/messages', async (req: Request, res: Response) => {
   }
 });
 
-// Server info endpoint
+// Server info endpoint with optional tools information
 app.get('/info', (req: Request, res: Response) => {
-  res.status(200).json({
+  const baseInfo = {
     name: SERVER_NAME,
     version: SERVER_VERSION,
     activeSessions: sessions.size,
@@ -1082,7 +1086,9 @@ app.get('/info', (req: Request, res: Response) => {
     arch: os.arch(),
     node: process.version,
     workspace: DEFAULT_WORKSPACE
-  });
+  };
+
+  res.status(200).json(baseInfo);
 });
 
 // Serve static files
