@@ -182,6 +182,40 @@
   </div>
 
   <div class="tool-card">
+    <h2>Grep (Search in Files)</h2>
+    <div class="form-group">
+      <label for="grep-pattern">Search Pattern:</label>
+      <input type="text" id="grep-pattern" placeholder="Pattern to search for">
+    </div>
+    <div class="form-group">
+      <label for="grep-file-paths">File Path(s):</label>
+      <input type="text" id="grep-file-paths" placeholder="path/to/file.txt or comma-separated paths">
+    </div>
+    <div class="form-group">
+      <label for="grep-use-regex">Use Regex:</label>
+      <input type="checkbox" id="grep-use-regex" checked>
+    </div>
+    <div class="form-group">
+      <label for="grep-case-sensitive">Case Sensitive:</label>
+      <input type="checkbox" id="grep-case-sensitive">
+    </div>
+    <div class="form-group">
+      <label for="grep-before-context">Lines Before Match:</label>
+      <input type="number" id="grep-before-context" placeholder="0" min="0" value="0">
+    </div>
+    <div class="form-group">
+      <label for="grep-after-context">Lines After Match:</label>
+      <input type="number" id="grep-after-context" placeholder="0" min="0" value="0">
+    </div>
+    <div class="form-group">
+      <label for="grep-max-matches">Max Matches (optional):</label>
+      <input type="number" id="grep-max-matches" placeholder="Unlimited" min="1">
+    </div>
+    <button id="grep-btn">Search</button>
+    <div class="output" id="grep-output"></div>
+  </div>
+
+  <div class="tool-card">
     <h2>Edit File</h2>
     <div class="form-group">
       <label for="edit-file-path">File Path:</label>
@@ -359,6 +393,8 @@
         <label for="combo-task-type">Task Type:</label>
         <select id="combo-task-type">
           <option value="">-- Select Task Type --</option>
+          <option value="runShellCommand">Run Shell Command</option>
+          <option value="runPythonFile">Run Python File</option>
           <option value="readFile">Read File</option>
           <option value="createFile">Create File</option>
           <option value="editFile">Edit File</option>
@@ -371,6 +407,7 @@
           <option value="copyDirectory">Copy Directory</option>
           <option value="deleteDirectory">Delete Directory</option>
           <option value="getDirectoryTree">Get Directory Tree</option>
+          <option value="grep">Grep (Search in Files)</option>
         </select>
       </div>
 
@@ -592,6 +629,7 @@
                          toolName === 'copyDirectory' ? 'copy-dir-output' :
                          toolName === 'deleteDirectory' ? 'delete-dir-output' :
                          toolName === 'getDirectoryTree' ? 'dir-tree-output' :
+                         toolName === 'grep' ? 'grep-output' :
                          toolName === 'combinationTask' ? 'combo-output' : null;
 
         if (!outputId) {
@@ -952,6 +990,93 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
         }
       });
 
+      // Grep (Search in Files)
+      document.getElementById('grep-btn').addEventListener('click', async () => {
+        const pattern = document.getElementById('grep-pattern').value;
+        const filePathsInput = document.getElementById('grep-file-paths').value;
+        const useRegex = document.getElementById('grep-use-regex').checked;
+        const caseSensitive = document.getElementById('grep-case-sensitive').checked;
+        const beforeContextInput = document.getElementById('grep-before-context').value;
+        const afterContextInput = document.getElementById('grep-after-context').value;
+        const maxMatchesInput = document.getElementById('grep-max-matches').value;
+
+        // Parse file paths (comma-separated)
+        const filePaths = filePathsInput.includes(',')
+          ? filePathsInput.split(',').map(path => path.trim())
+          : filePathsInput;
+
+        // Parse numeric inputs
+        const beforeContext = beforeContextInput ? parseInt(beforeContextInput) : 0;
+        const afterContext = afterContextInput ? parseInt(afterContextInput) : 0;
+        const maxMatches = maxMatchesInput ? parseInt(maxMatchesInput) : undefined;
+
+        const output = document.getElementById('grep-output');
+
+        if (!pattern) {
+          output.textContent = 'Error: Search pattern is required';
+          return;
+        }
+
+        if (!filePathsInput) {
+          output.textContent = 'Error: File path(s) are required';
+          return;
+        }
+
+        output.textContent = 'Searching...';
+
+        try {
+          const result = await invokeTool('grep', {
+            pattern,
+            filePaths,
+            useRegex,
+            caseSensitive,
+            beforeContext,
+            afterContext,
+            maxMatches
+          });
+
+          // Format the results for better readability
+          try {
+            const matches = JSON.parse(result);
+            if (matches.length === 0) {
+              output.textContent = 'No matches found.';
+            } else {
+              let formattedOutput = `Found ${matches.length} match${matches.length > 1 ? 'es' : ''}:\n\n`;
+
+              matches.forEach((match, index) => {
+                formattedOutput += `Match ${index + 1}: ${match.file}:${match.line}\n`;
+
+                // Add before context if available
+                if (match.beforeContext && match.beforeContext.length > 0) {
+                  match.beforeContext.forEach((line, i) => {
+                    formattedOutput += `  ${match.line - match.beforeContext.length + i}: ${line}\n`;
+                  });
+                }
+
+                // Add the matching line with highlighting
+                formattedOutput += `> ${match.line}: ${match.content}\n`;
+
+                // Add after context if available
+                if (match.afterContext && match.afterContext.length > 0) {
+                  match.afterContext.forEach((line, i) => {
+                    formattedOutput += `  ${match.line + i + 1}: ${line}\n`;
+                  });
+                }
+
+                formattedOutput += '\n';
+              });
+
+              output.innerHTML = `<pre>${formattedOutput}</pre>`;
+            }
+          } catch (parseError) {
+            // If parsing fails, just show the raw result
+            output.textContent = result;
+          }
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+
       // Edit File - Show/hide fields based on operation
       document.getElementById('edit-file-operation').addEventListener('change', function() {
         const operation = this.value;
@@ -1206,6 +1331,13 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
 
       // Combination Task - Task Parameter Definitions
       const taskParamDefinitions = {
+        runShellCommand: [
+          { name: 'command', type: 'text', label: 'Command', placeholder: 'ls -la', required: true }
+        ],
+        runPythonFile: [
+          { name: 'filePath', type: 'text', label: 'File Path', placeholder: 'path/to/script.py', required: true },
+          { name: 'args', type: 'text', label: 'Arguments', placeholder: 'arg1 arg2' }
+        ],
         readFile: [
           { name: 'filePath', type: 'text', label: 'File Path', placeholder: 'path/to/file.txt', required: true },
           { name: 'encoding', type: 'text', label: 'Encoding', placeholder: 'utf8 (optional)' },
@@ -1271,6 +1403,15 @@ Connection Status: ${document.getElementById('connection-status').textContent}`)
           { name: 'includeDirs', type: 'checkbox', label: 'Include Directories', checked: true },
           { name: 'includeSize', type: 'checkbox', label: 'Include File Sizes' },
           { name: 'exclude', type: 'text', label: 'Exclude Paths (comma-separated)', placeholder: 'node_modules,dist,.git' }
+        ],
+        grep: [
+          { name: 'pattern', type: 'text', label: 'Search Pattern', placeholder: 'Pattern to search for', required: true },
+          { name: 'filePaths', type: 'text', label: 'File Path(s)', placeholder: 'path/to/file.txt or comma-separated paths', required: true },
+          { name: 'useRegex', type: 'checkbox', label: 'Use Regex', checked: true },
+          { name: 'caseSensitive', type: 'checkbox', label: 'Case Sensitive' },
+          { name: 'beforeContext', type: 'number', label: 'Lines Before Match', placeholder: '0' },
+          { name: 'afterContext', type: 'number', label: 'Lines After Match', placeholder: '0' },
+          { name: 'maxMatches', type: 'number', label: 'Max Matches', placeholder: 'Unlimited' }
         ]
       };
 

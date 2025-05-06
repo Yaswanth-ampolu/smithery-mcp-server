@@ -5,8 +5,9 @@ import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
 import os from "os";
-import { runShellCommand, runPythonFile, readDirectory, copyFile, createFile, readFile, editFile, deleteFile, moveFile, createDirectory, moveDirectory, copyDirectory, deleteDirectory, getDirectoryTree, combinationTask } from "./system.js";
+import { runShellCommand, runPythonFile, readDirectory, copyFile, createFile, readFile, editFile, deleteFile, moveFile, createDirectory, moveDirectory, copyDirectory, deleteDirectory, getDirectoryTree, combinationTask, grepFiles } from "./system.js";
 import { getDefaultWorkspace, ensureWorkspaceExists } from "./platform-paths.js";
+import { createToolsRouter } from "./tools-endpoint.js";
 // Load environment variables
 dotenv.config();
 // Get server configuration from environment variables
@@ -381,6 +382,43 @@ server.tool("getDirectoryTree", "Get a hierarchical representation of a director
         };
     }
 });
+server.tool("grep", "Search for patterns in files (grep)", {
+    pattern: z.string().describe("Pattern to search for (string or regex)"),
+    filePaths: z.union([z.string(), z.array(z.string())]).describe("File path(s) to search in"),
+    useRegex: z.boolean().optional().describe("Treat pattern as regex (default: true)"),
+    caseSensitive: z.boolean().optional().describe("Case sensitive search (default: false)"),
+    beforeContext: z.number().optional().describe("Number of lines of context before match (default: 0)"),
+    afterContext: z.number().optional().describe("Number of lines of context after match (default: 0)"),
+    maxMatches: z.number().optional().describe("Maximum number of matches to return (default: unlimited)"),
+    encoding: z.string().optional().describe("File encoding (default: utf8)"),
+}, async ({ pattern, filePaths, useRegex, caseSensitive, beforeContext, afterContext, maxMatches, encoding }) => {
+    try {
+        const matches = await grepFiles(pattern, filePaths, {
+            useRegex,
+            caseSensitive,
+            beforeContext,
+            afterContext,
+            maxMatches,
+            encoding: encoding
+        });
+        return {
+            content: [{
+                    type: "text",
+                    text: JSON.stringify(matches, null, 2)
+                }],
+        };
+    }
+    catch (error) {
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: error instanceof Error ? error.message : "Unknown error"
+                }
+            ],
+        };
+    }
+});
 server.tool("combinationTask", "Run a sequence of operations with a common working directory", {
     workingDir: z.string().describe("Working directory for all operations"),
     tasks: z.array(z.object({
@@ -434,6 +472,8 @@ const httpServer = http.createServer(app);
 // Apply middleware
 app.use(cors());
 app.use(express.json());
+// Add tools router
+app.use('/tools', createToolsRouter(server));
 const sessions = new Map();
 // SSE endpoint
 app.get('/sse', (req, res) => {
@@ -748,6 +788,32 @@ app.post('/messages', async (req, res) => {
                             };
                         }
                         break;
+                    case 'grep':
+                        try {
+                            const matches = await grepFiles(parameters.pattern, parameters.filePaths, {
+                                useRegex: parameters.useRegex,
+                                caseSensitive: parameters.caseSensitive,
+                                beforeContext: parameters.beforeContext,
+                                afterContext: parameters.afterContext,
+                                maxMatches: parameters.maxMatches,
+                                encoding: parameters.encoding
+                            });
+                            result = {
+                                content: [{
+                                        type: "text",
+                                        text: JSON.stringify(matches, null, 2)
+                                    }]
+                            };
+                        }
+                        catch (error) {
+                            result = {
+                                content: [{
+                                        type: "text",
+                                        text: error instanceof Error ? error.message : "Unknown error"
+                                    }]
+                            };
+                        }
+                        break;
                     case 'combinationTask':
                         try {
                             const results = await combinationTask(parameters.workingDir, parameters.tasks, { stopOnError: parameters.stopOnError });
@@ -846,9 +912,9 @@ app.post('/messages', async (req, res) => {
         return;
     }
 });
-// Server info endpoint
+// Server info endpoint with optional tools information
 app.get('/info', (req, res) => {
-    res.status(200).json({
+    const baseInfo = {
         name: SERVER_NAME,
         version: SERVER_VERSION,
         activeSessions: sessions.size,
@@ -856,7 +922,8 @@ app.get('/info', (req, res) => {
         arch: os.arch(),
         node: process.version,
         workspace: DEFAULT_WORKSPACE
-    });
+    };
+    res.status(200).json(baseInfo);
 });
 // Serve static files
 app.use(express.static('public'));
