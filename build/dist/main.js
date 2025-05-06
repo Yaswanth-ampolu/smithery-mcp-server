@@ -10,28 +10,17 @@ import { getDefaultWorkspace, ensureWorkspaceExists } from "./platform-paths.js"
 import { createToolsRouter } from "./tools-endpoint.js";
 // Load environment variables
 dotenv.config();
-// Get server configuration from environment variables
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8080;
-const HOST = process.env.MCP_SERVER_HOST || '0.0.0.0';
-const SERVER_NAME = process.env.SERVER_NAME || "MCP System Tools";
-const SERVER_VERSION = process.env.SERVER_VERSION || "1.0.0";
+// Import configuration system
+import { loadConfig, saveConfig, findAvailablePort } from './config.js';
+// Initialize configuration (will be populated in startServer)
+let CONFIG;
 // Determine and ensure workspace directory
 const DEFAULT_WORKSPACE = ensureWorkspaceExists(getDefaultWorkspace());
-// Log server info
-console.log(`
-=================================================
-  MCP Server ${SERVER_VERSION} - ${SERVER_NAME}
-=================================================
-OS: ${os.platform()} ${os.release()} (${os.arch()})
-Node: ${process.version}
-Workspace: ${DEFAULT_WORKSPACE}
-Binding to: ${HOST}:${PORT}
-=================================================
-`);
-// Create an MCP server
+// Server info will be logged after configuration is loaded
+// Create an MCP server (will be configured after loading config)
 const server = new McpServer({
-    name: SERVER_NAME,
-    version: SERVER_VERSION,
+    name: "MCP System Tools", // Will be updated with config
+    version: "1.0.0", // Will be updated with config
 });
 // Register tools
 server.tool("runShellCommand", "Run a terminal command in the system shell", {
@@ -913,15 +902,16 @@ app.post('/messages', async (req, res) => {
     }
 });
 // Server info endpoint with optional tools information
-app.get('/info', (req, res) => {
+app.get('/info', (_req, res) => {
     const baseInfo = {
-        name: SERVER_NAME,
-        version: SERVER_VERSION,
+        name: CONFIG.serverName,
+        version: CONFIG.serverVersion,
         activeSessions: sessions.size,
         platform: os.platform(),
         arch: os.arch(),
         node: process.version,
-        workspace: DEFAULT_WORKSPACE
+        workspace: DEFAULT_WORKSPACE,
+        port: CONFIG.port
     };
     res.status(200).json(baseInfo);
 });
@@ -955,30 +945,88 @@ function shutdown() {
         process.exit(1);
     }, 5000);
 }
-// Start server
-function startServer(port, maxRetries = 3, retryCount = 0) {
-    httpServer.listen(port, HOST, () => {
-        console.log(`MCP Server listening on ${HOST}:${port}`);
-    }).on('error', (err) => {
-        if (err.code === 'EADDRINUSE') {
-            console.warn(`Port ${port} is already in use.`);
-            if (retryCount < maxRetries) {
-                const nextPort = port + 1;
-                console.log(`Trying next port: ${nextPort}`);
-                httpServer.close();
-                startServer(nextPort, maxRetries, retryCount + 1);
+// Start server with configuration
+async function initializeServer() {
+    try {
+        // Load configuration
+        CONFIG = await loadConfig();
+        // Override with environment variables if provided
+        if (process.env.PORT) {
+            CONFIG.port = parseInt(process.env.PORT);
+        }
+        if (process.env.MCP_SERVER_HOST) {
+            CONFIG.host = process.env.MCP_SERVER_HOST;
+        }
+        if (process.env.SERVER_NAME) {
+            CONFIG.serverName = process.env.SERVER_NAME;
+        }
+        if (process.env.SERVER_VERSION) {
+            CONFIG.serverVersion = process.env.SERVER_VERSION;
+        }
+        // Log server info
+        console.log(`
+=================================================
+  MCP Server ${CONFIG.serverVersion} - ${CONFIG.serverName}
+=================================================
+OS: ${os.platform()} ${os.release()} (${os.arch()})
+Node: ${process.version}
+Workspace: ${DEFAULT_WORKSPACE}
+Default Port: ${CONFIG.port}
+=================================================
+`);
+        // Start the server
+        startServer(CONFIG.port);
+    }
+    catch (error) {
+        console.error('Failed to initialize server:', error);
+        process.exit(1);
+    }
+}
+// Start server with port checking and automatic port selection
+async function startServer(port, maxRetries = 3, retryCount = 0) {
+    try {
+        // Check if port is available
+        const isAvailable = await findAvailablePort(port);
+        if (port !== isAvailable) {
+            console.warn(`Port ${port} is already in use. Using port ${isAvailable} instead.`);
+            // Update configuration with new port
+            CONFIG.port = isAvailable;
+            await saveConfig(CONFIG);
+            console.log(`Configuration updated with new port: ${isAvailable}`);
+            port = isAvailable;
+        }
+        // Start the server
+        httpServer.listen(port, CONFIG.host, () => {
+            console.log(`MCP Server listening on ${CONFIG.host}:${port}`);
+        }).on('error', async (err) => {
+            if (err.code === 'EADDRINUSE') {
+                console.warn(`Port ${port} is already in use.`);
+                if (retryCount < maxRetries) {
+                    const nextPort = port + 1;
+                    console.log(`Trying next port: ${nextPort}`);
+                    httpServer.close();
+                    // Update configuration with new port
+                    CONFIG.port = nextPort;
+                    await saveConfig(CONFIG);
+                    console.log(`Configuration updated with new port: ${nextPort}`);
+                    startServer(nextPort, maxRetries, retryCount + 1);
+                }
+                else {
+                    console.error(`Failed to start server after ${maxRetries} retries.`);
+                    process.exit(1);
+                }
             }
             else {
-                console.error(`Failed to start server after ${maxRetries} retries.`);
+                console.error('Error starting server:', err);
                 process.exit(1);
             }
-        }
-        else {
-            console.error('Error starting server:', err);
-            process.exit(1);
-        }
-    });
+        });
+    }
+    catch (error) {
+        console.error('Error starting server:', error);
+        process.exit(1);
+    }
 }
 // Initialize server
-startServer(PORT);
+initializeServer();
 //# sourceMappingURL=main.js.map
