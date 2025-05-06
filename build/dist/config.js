@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import path from 'path';
 import net from 'net';
 import { getDefaultWorkspace, ensureWorkspaceExists, resolveWorkspacePath } from './platform-paths.js';
@@ -13,42 +14,70 @@ const DEFAULT_CONFIG = {
 };
 // Get the installation directory (where the config file will be stored)
 function getInstallDir() {
-    // The configuration file should be stored in the MCP terminal installation directory
-    // which is typically the current working directory when the server is started
-    // First, try to use the current working directory
-    const cwd = process.cwd();
-    // Check if we're in the MCP terminal directory by looking for key files
-    let isMcpDir = false;
+    // The configuration file should ALWAYS be stored in the MCP terminal installation directory
+    // First, check if MCP_INSTALL_DIR environment variable is set
+    if (process.env.MCP_INSTALL_DIR) {
+        console.log(`Using MCP_INSTALL_DIR for configuration: ${process.env.MCP_INSTALL_DIR}`);
+        return process.env.MCP_INSTALL_DIR;
+    }
+    // Next, try to find the installation directory from the PID file
+    // The PID file is always in the installation directory
+    const homedir = process.env.HOME || process.env.USERPROFILE || '.';
+    const mcpTerminalDir = path.join(homedir, 'mcp-terminal');
+    // Check if the mcp-terminal directory exists in the home directory
     try {
-        // Use the synchronous version from the 'fs' module, not the Promise-based one
-        const fsSync = require('fs');
-        isMcpDir =
-            fsSync.existsSync(path.join(cwd, 'package.json')) ||
-                fsSync.existsSync(path.join(cwd, 'dist', 'main.js'));
+        if (existsSync(mcpTerminalDir)) {
+            console.log(`Using mcp-terminal directory for configuration: ${mcpTerminalDir}`);
+            return mcpTerminalDir;
+        }
     }
     catch (error) {
-        console.error('Error checking for MCP directory:', error);
+        console.error('Error checking mcp-terminal directory:', error);
     }
-    if (isMcpDir) {
-        console.log(`Using current directory for configuration: ${cwd}`);
-        return cwd;
-    }
-    // If we're not in the MCP terminal directory, try to find it
+    // If we're running from the installation directory
+    const cwd = process.cwd();
     try {
-        // For ESM modules, try to determine from the module path
+        if (cwd.endsWith('mcp-terminal') ||
+            (existsSync(path.join(cwd, 'package.json')) &&
+                existsSync(path.join(cwd, 'dist', 'main.js')))) {
+            console.log(`Using current directory for configuration: ${cwd}`);
+            return cwd;
+        }
+    }
+    catch (error) {
+        console.error('Error checking current directory:', error);
+    }
+    // If we're running from the dist directory
+    if (cwd.endsWith(path.join('mcp-terminal', 'dist'))) {
+        const parentDir = path.dirname(cwd);
+        console.log(`Using parent directory for configuration: ${parentDir}`);
+        return parentDir;
+    }
+    // Try to determine from the module path (for ESM modules)
+    try {
         const moduleUrl = new URL(import.meta.url);
         const modulePath = path.dirname(moduleUrl.pathname);
         // Go up two levels (from /dist/config.js to /)
         const installDir = path.resolve(modulePath, '../..');
-        console.log(`Using module path for configuration: ${installDir}`);
-        return installDir;
+        // Only use this if it looks like an MCP terminal directory
+        try {
+            if (existsSync(path.join(installDir, 'package.json')) ||
+                existsSync(path.join(installDir, 'dist', 'main.js'))) {
+                console.log(`Using module path for configuration: ${installDir}`);
+                return installDir;
+            }
+        }
+        catch (error) {
+            console.error('Error checking module path directory:', error);
+        }
     }
     catch (error) {
-        // If all else fails, use the MCP_INSTALL_DIR environment variable or fall back to a default
-        const installDir = process.env.MCP_INSTALL_DIR || path.join(process.env.HOME || process.env.USERPROFILE || '.', 'mcp-terminal');
-        console.log(`Using fallback path for configuration: ${installDir}`);
-        return installDir;
+        // Ignore errors from this approach
+        console.error('Error determining module path:', error);
     }
+    // As a last resort, use the default MCP terminal directory in the home directory
+    console.log(`Using default path for configuration: ${mcpTerminalDir}`);
+    return mcpTerminalDir;
 }
 // Path to the configuration file
 const CONFIG_FILE_PATH = path.join(getInstallDir(), 'mcp-config.json');
